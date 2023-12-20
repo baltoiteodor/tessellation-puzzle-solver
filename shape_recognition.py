@@ -1,46 +1,81 @@
-import cv2 
-import numpy as np 
+from image_search.detector import Detector
+
+import argparse
+import imutils
+import cv2 as cv
+import numpy as np
+
+# Parser for arguments and potentially flags. 
+
+# Specify desired arguments.
+argsParser = argparse.ArgumentParser()
+argsParser.add_argument("-i", "--image", required = True, 
+                        help = "path to input puzzle image.") # Will correspond to "image" argument
+
+# Parse the arguments.
+args = vars(argsParser.parse_args())
 
 
-# read original image 
-img = cv2.imread("images/original_puzzle.jpg")
+# Loading and Image Processing. 
 
-# convert original image to grayscale 
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY) 
+image = cv.imread(args["image"])
 
-# save the greyscale image 
-cv2.imwrite("images/grayscale_original_puzzle.jpg", gray)
+# Resize to better approximate shapes, this should work as the pieces have rough edges and shapes.
+resizedImage = imutils.resize(image, width=300)
+ratio = image.shape[0] / float(resizedImage.shape[0])
 
-_, threshold_img = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY) 
-# threshold_img = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+# Adjust brightness and contrast
+# TODO: make this automatic
+alpha = 1.95
+beta = 0 
+contrastImage = cv.convertScaleAbs(resizedImage, alpha=alpha, beta=beta)
+cv.imwrite("contrast.jpg", contrastImage)
 
-cv2.imwrite("images/threshold_original_puzzle.jpg", threshold_img)
+# Convert resized image to GS, Blur it and apply threshold.
+grayImage = cv.cvtColor(contrastImage, cv.COLOR_BGR2GRAY)
+cv.imwrite("gray.jpg", grayImage)
 
 
-# find all the shapes with the findContours method
-contours, _ = cv2.findContours( 
-    threshold_img, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
+# blurredImage = cv.GaussianBlur(grayImage, (5, 5), 0)
+# cv.imwrite("blur.jpg", blurredImage)
 
-# iterate thru contours 
+# Replaced blurredImage with grayImage.
+threshImage = cv.threshold(grayImage, 195, 255, cv.THRESH_BINARY_INV)[1]
 
-first_shape = True  
+cv.imwrite("thresh.jpg", threshImage)
 
-for contour in contours: 
-  
-    # first shape is the whole image
-    if first_shape: 
-        first_shape = False
-        continue
-  
-    # cv2.approxPloyDP() function to approximate the shape 
-    approx = cv2.approxPolyDP( 
-        contour, 0.01 * cv2.arcLength(contour, True), True) 
-      
-    # using drawContours() function 
-    cv2.drawContours(img, [contour], 0, (0, 0, 255), 5) 
-  
-    # finding center point of shape 
-    M = cv2.moments(contour) 
-    if M['m00'] != 0.0: 
-        x = int(M['m10']/M['m00']) 
-        y = int(M['m01']/M['m00']) 
+# Find contours and deal with them.
+contours = cv.findContours(threshImage, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+contours = imutils.grab_contours(contours)
+   
+detector = Detector()
+
+rotatedImage = np.zeros_like(image)
+for c in contours: 
+    print("Here is a shape: ")
+    detector.detect(c)
+    # Make the contour straight using the min area rectangle.
+    rect = cv.minAreaRect(c)
+    
+    angle = rect[2]
+    rows, cols = rotatedImage.shape[:2]
+    M = cv.getRotationMatrix2D(rect[0], angle, 1)
+
+    contour_rotated = cv.transform(c.reshape(-1, 1, 2), M).reshape(-1, 2)
+    contour_rotated = contour_rotated.astype(np.int32)
+
+    # Needed for debugging
+    cv.drawContours(rotatedImage, [contour_rotated], 0, (255,255,255), 2)
+
+    print("Here is the same shape, rotated: ")
+    detector.detect(contour_rotated)
+
+    ogArea = cv.contourArea(c)
+    rotatedArea = cv.contourArea(contour_rotated)
+    print("Area:")
+    print(ogArea)
+    print(rotatedArea)
+
+cv.imwrite("straight.jpg", rotatedImage)
+
+

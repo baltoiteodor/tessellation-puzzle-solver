@@ -1,8 +1,12 @@
 # Documentation 
 
-## First phase of the project 
+## How does the program work? 
 
-The aim is to solve puzzles like https://www.doc.ic.ac.uk/~mjw03/PersonalWebpage/Pics/puzzle.jpg, where each puzzle piece can be represented in the form of a multitude of --unit-- squares. 
+### Main Algorithm 
+
+The aim is to solve puzzles like https://www.doc.ic.ac.uk/~mjw03/PersonalWebpage/Pics/puzzle.jpg, where each puzzle piece can be represented in the form of a multitude of *unit* squares. 
+
+The first challenge of the project is to recognize the shapes from within the image. After correctly finding the shapes and their forms we can continue to the next step. (More on how we recognize shapes in section **Shape recognition**)
 
 Each piece will be first seated straight, with angle 0 relative to the Ox axis (More on this in section **Seating a piece straight**), e.g. <br>
 
