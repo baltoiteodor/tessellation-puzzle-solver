@@ -39,5 +39,7 @@ processor = Processor(rotatedContours)
 lMax = processor.findUnit()
 pieces = processor.getPieces() 
 
+print("Here are the grids for the pieces:")
+print(pieces)
 
 
