@@ -2,13 +2,14 @@
 
 # Specify desired arguments.
 import argparse
+import json
 
 import cv2 as cv
 
 from shape_finder.finder import ShapeFinder
 from shape_processor.processor import Processor
 from shape_rotation.rotator import Rotator
-
+from puzzle_solver.solver import Solver
 
 argsParser = argparse.ArgumentParser()
 argsParser.add_argument("-i", "--image", required = True, 
@@ -42,4 +43,39 @@ pieces = processor.getPieces()
 print("Here are the grids for the pieces:")
 print(pieces)
 
+#
+##
+#
 
+# First, we will write an algorithm that solves this puzzle in Python in order to afterward compare it to a C++ puzzle_solver
+# and get info on the rate of improvement.
+
+#
+##
+#
+
+# Python puzzle puzzle_solver.
+
+puzzleSolver = Solver()
+puzzleSolver.solveBackTracking(pieces)
+
+
+#
+##
+#
+
+# The C++ approach begins here.
+
+#
+##
+#
+
+# To transfer the pieces to the C++ Solver, we write our pieces to a file from where the puzzle_solver will read them and
+# continue. We will use JSON format.
+
+# Convert np arrays to python lists for serialisation.
+piecesList = [[int(cell) for cell in row] for arr in pieces for row in arr]
+array_of_2d_arrays_as_lists = [arr.tolist() for arr in pieces]
+
+with open('pieces.json', 'w') as piecesFile:
+    json.dump(array_of_2d_arrays_as_lists, piecesFile, indent=2)

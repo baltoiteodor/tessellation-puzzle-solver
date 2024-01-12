@@ -27,12 +27,22 @@ class ShapeFinder():
         # cv.imwrite("blur.jpg", blurredImage)
 
         # Replaced blurredImage with grayImage.
-        threshImage = cv.threshold(grayImage, 195, 255, cv.THRESH_BINARY_INV)[1]
+        threshImage = cv.threshold(grayImage, 240, 255, cv.THRESH_BINARY_INV)[1]
 
         cv.imwrite("thresh.jpg", threshImage)
 
         # Find contours and deal with them.
         contours = cv.findContours(threshImage, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
-        
-        return contours
+
+        # Smoothen contours - shapes at an angle might have noise.
+        smoothed_contours = []
+        # Higher epsilon means aggressive smoothing, low epsilon keeps more of the details.
+        epsilon = 0.1
+        for contour in contours:
+            # Approximate the contour to smoothen it
+            smooth_contour = cv.approxPolyDP(contour, epsilon * cv.arcLength(contour, True), True)
+
+            # Append the smoothed contour to the list
+            smoothed_contours.append(smooth_contour)
+        return smoothed_contours

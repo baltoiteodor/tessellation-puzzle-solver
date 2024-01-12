@@ -1,4 +1,4 @@
 ###### Requirements without Version Specifiers ######
 opencv-python
-
+imutils
 ###### Requirements with Version Specifiers ######
