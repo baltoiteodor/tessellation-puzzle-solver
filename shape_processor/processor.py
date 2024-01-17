@@ -1,7 +1,7 @@
 import numpy as np
 import cv2 as cv
 MAXREZ = 1024
-DECREMENT = 0.2
+DECREMENT = 0.1
 
 
 class Processor():
@@ -14,6 +14,7 @@ class Processor():
         # Find the smallest edge first, this will be a potential candidate for the unit length.
         smallestEdge = MAXREZ
         for c in self.contours:
+            print("Piece: ", c.squeeze())
             self.totalArea += cv.contourArea(c)
             # min_rect = cv.minAreaRect(c)
             # contourToRectangle[c] = min_rect
@@ -33,11 +34,13 @@ class Processor():
         color_contour = (0, 255, 0)  # Green color for contours
         color_rect = (0, 0, 255)  # Red color for rectangles
 
-        while error > 0.01 and unitLen > 0:
+        while error > 0.05 and unitLen > 0:
             # Make grid for each contour
-            coveredArea = 0.0
             self.pieces = []
+            error = 0.0
             for c in self.contours:
+                coveredArea = 0.0
+                pieceArea = cv.contourArea(c)
                 rect = cv.minAreaRect(c)
                 centre, size, angle = rect
 
@@ -53,7 +56,6 @@ class Processor():
                 botRightX = np.max(box[:,0])
                 botRightY = np.max(box[:,1])
 
-                print(topLeftX, topLeftY)
                 # For each unit of the grid, check if the centre is inside the polygon, if yes, then put 1 inside the
                 # grid, otherwise 0.
                 # Start with row 0, stop when we are outside the rectangle. Same for columns. 
@@ -97,12 +99,14 @@ class Processor():
                     grid = grid[:-1, :]
 
                 self.pieces.append(grid)
+                # Error is the maximum error per piece.
+                error = max(error, (abs(1 - coveredArea / pieceArea)))
 
             cv.imwrite('cnt_and_rect.jpg', output_image)
 
 
             # Current error is calculated from the ratio between total area and covered area. 
-            error = abs(1 - (coveredArea / self.totalArea)) 
+            # error = abs(1 - (coveredArea / self.totalArea))
             # print(unitLen, error)
             unitLen -= DECREMENT
         

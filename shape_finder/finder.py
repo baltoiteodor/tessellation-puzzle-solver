@@ -8,14 +8,15 @@ class ShapeFinder():
         pass 
     def detectShapes(self, image): 
         # Resize to better approximate shapes, this should work as the pieces have rough edges and shapes.
-        resizedImage = imutils.resize(image, width=300)
-        ratio = image.shape[0] / float(resizedImage.shape[0])
+        # resizedImage = imutils.resize(image, width=300)
+        # ratio = image.shape[0] / float(resizedImage.shape[0])
 
         # Adjust brightness and contrast
         # TODO: make this automatic
         alpha = 1.95
-        beta = 0 
-        contrastImage = cv.convertScaleAbs(resizedImage, alpha=alpha, beta=beta)
+        beta = 0
+        # No resizing for testing
+        contrastImage = cv.convertScaleAbs(image, alpha=alpha, beta=beta)
         cv.imwrite("contrast.jpg", contrastImage)
 
         # Convert resized image to GS, Blur it and apply threshold.
