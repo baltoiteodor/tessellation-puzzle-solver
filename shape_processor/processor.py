@@ -1,6 +1,7 @@
 import numpy as np
 import cv2 as cv
 MAXREZ = 1024
+DECREMENT = 0.2
 
 
 class Processor():
@@ -32,25 +33,19 @@ class Processor():
         color_contour = (0, 255, 0)  # Green color for contours
         color_rect = (0, 0, 255)  # Red color for rectangles
 
-        while error > 0.05 and unitLen > 0:
+        while error > 0.01 and unitLen > 0:
             # Make grid for each contour
             coveredArea = 0.0
             self.pieces = []
             for c in self.contours:
                 rect = cv.minAreaRect(c)
                 centre, size, angle = rect
-                # width, height = size
 
                 cv.drawContours(output_image, [c], -1, color_contour, 2)
                 box = cv.boxPoints(rect)
                 box = np.int0(box)
                 cv.drawContours(output_image, [box], 0, color_rect, 2)
 
-                print("4 points I hope: ", box)
-                print("Min square: ", centre)
-                # print(width, height)
-                # topLeftX = int(centre[0] - width / 2)
-                # topLeftY = int(centre[1] - height / 2)
                 # I cannot figure out why the dimensions keep on switching randomly. TopLeft will be min x min y.
 
                 topLeftX = np.min(box[:,0])
@@ -98,7 +93,7 @@ class Processor():
                     grid = grid[:, :-1]
 
                 # Remove the last row if all zero.
-                elif np.all(grid[-1, :] == 0):
+                if np.all(grid[-1, :] == 0):
                     grid = grid[:-1, :]
 
                 self.pieces.append(grid)
@@ -109,7 +104,7 @@ class Processor():
             # Current error is calculated from the ratio between total area and covered area. 
             error = abs(1 - (coveredArea / self.totalArea)) 
             # print(unitLen, error)
-            unitLen -= 1
+            unitLen -= DECREMENT
         
     def getPieces(self):
         return self.pieces

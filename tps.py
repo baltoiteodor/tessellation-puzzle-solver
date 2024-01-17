@@ -57,7 +57,10 @@ print(pieces)
 # Python puzzle puzzle_solver.
 
 puzzleSolver = Solver()
-puzzleSolver.solveBackTracking(pieces)
+if puzzleSolver.solveBackTracking(pieces):
+    print("Puzzle is solvable.")
+else:
+    print("Something is or went wrong with the puzzle.")
 
 
 #
