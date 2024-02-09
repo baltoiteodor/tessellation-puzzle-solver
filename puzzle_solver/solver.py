@@ -13,12 +13,25 @@ def removePiece(currBoard, piece, row, col):
 
 
 def setPiece(currBoard, board, outputMatrix, piece, row, col):
+
     for i in range(row, row + len(piece[0])):
         for j in range(col, col + len(piece[0][0])):
             currBoard[i][j] = board[i][j]
             outputMatrix[i][j] = piece[1]
 
+# Rotates a 2D puzzle piece, clock-wise, 90 degrees.
+# TODO: add to test suite.
+def rotatePiece(piece):
+    numRows = len(piece)
+    numCols = len(piece[0])
 
+    rotatedPiece = [[0] * numRows for _ in range(numCols)]
+
+    for i in range(numRows):
+        for j in range(numCols):
+            rotatedPiece[j][numRows - i - 1] = piece[i][j]
+
+    return rotatedPiece
 class Solver:
     def __init__(self):
         pass
@@ -32,7 +45,6 @@ class Solver:
         # found. We try all 4 rotations of that piece if not rectangular (Piece is rect if there are no 0
         # in its matrix representation).
 
-        # TODO: acc implement the 4 rotations thing
         board = sortedPieces[0]
         sortedPieces = sortedPieces[1:]
 
@@ -42,11 +54,12 @@ class Solver:
         # We will start the bkt from empty board.
         emptyBoard = np.zeros_like(board)
         outputMatrix = np.zeros_like(board)
+
         return self.backtrack(emptyBoard, board, outputMatrix, sortedPiecesIndex, 0, 0)
 
     # Returns True if the piece fits in nicely, otherwise False.
     def isValid(self, currBoard, board, piece, row, col):
-        if row + len(piece) > len(currBoard) or col + len(piece[0]) > len(currBoard[0]):
+        if row + len(piece) - 1 > len(currBoard) or col + len(piece[0]) - 1 > len(currBoard[0]):
             return False
         for i in range(row, row + len(piece)):
             for j in range(col, col + len(piece[0])):
@@ -71,14 +84,18 @@ class Solver:
 
         # Try all possible pieces (with different rotations as well?).
         for piece in pieces:
-            # Move to next position with the remaining pieces.
-            if self.isValid(currentBoard, board, piece[0], row, col):
-                setPiece(currentBoard, board, outputMatrix, piece, row, col)
-                remainingPieces = pieces.copy()
-                # Pieces is an inconvenient list of np arrays.
-                remainingPieces = [arr for arr in remainingPieces if not (np.array_equal(arr[0], piece[0]) and arr[1] == piece[1])]
-                if self.backtrack(currentBoard, board, outputMatrix, remainingPieces, row, col):
-                    return True
-                # Backtrack, remove the piece.
-                removePiece(currentBoard, piece[0], row, col)
+            # Move to next position with the remaining pieces if at least one rotation is valid.
+            # TODO: add some extra check here such that we only rotate pieces that make sense. a.i. Not squares.
+            curr_piece = piece[0]
+            for _ in range(4):
+                if self.isValid(currentBoard, board, curr_piece, row, col):
+                    setPiece(currentBoard, board, outputMatrix, (curr_piece, piece[1]), row, col)
+                    remainingPieces = pieces.copy()
+                    # Pieces is an inconvenient list of np arrays.
+                    remainingPieces = [arr for arr in remainingPieces if not (np.array_equal(arr[0], piece[0]) and arr[1] == piece[1])]
+                    if self.backtrack(currentBoard, board, outputMatrix, remainingPieces, row, col):
+                        return True
+                    # Backtrack, remove the piece.
+                    removePiece(currentBoard, curr_piece, row, col)
+                curr_piece = rotatePiece(curr_piece)
         return False

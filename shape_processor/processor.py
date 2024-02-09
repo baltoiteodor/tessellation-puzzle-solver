@@ -101,6 +101,7 @@ class Processor():
                 self.pieces.append(grid)
                 # Error is the maximum error per piece.
                 error = max(error, (abs(1 - coveredArea / pieceArea)))
+                # TODO add here a break point lol
 
             cv.imwrite('cnt_and_rect.jpg', output_image)
 
