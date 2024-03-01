@@ -25,7 +25,7 @@ args = vars(argsParser.parse_args())
 image = cv.imread(args["image"])
 shapeFinder = ShapeFinder()
 contours = shapeFinder.detectShapes(image)
-print(contours)
+print("Contours after smoothing", contours)
 
 
 # Rotate the images in the case they are at an angle.

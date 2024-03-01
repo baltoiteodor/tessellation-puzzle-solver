@@ -1,6 +1,7 @@
 import cv2 as cv
 import imutils
 import cv2 as cv
+import numpy as np
 
 
 class ShapeFinder():
@@ -36,10 +37,17 @@ class ShapeFinder():
         contours = cv.findContours(threshImage, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contours)
 
+        # what is going on?
+        contour_image = np.zeros_like(image)
+        cv.drawContours(contour_image, contours, -1, (0, 255, 0), 2)
+        cv.imwrite('contoursagain.jpg', contour_image)
+        for contour in contours:
+            print("Original Contour: ", contour)
+
         # Smoothen contours - shapes at an angle might have noise.
         smoothed_contours = []
         # Higher epsilon means aggressive smoothing, low epsilon keeps more of the details.
-        epsilon = 0.1
+        epsilon = 0.01
         for contour in contours:
             # Approximate the contour to smoothen it
             smooth_contour = cv.approxPolyDP(contour, epsilon * cv.arcLength(contour, True), True)
