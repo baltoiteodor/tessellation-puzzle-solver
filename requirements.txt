@@ -1,4 +1,5 @@
 ###### Requirements without Version Specifiers ######
 opencv-python
 imutils
+numpy
 ###### Requirements with Version Specifiers ######
