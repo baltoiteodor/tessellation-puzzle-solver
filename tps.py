@@ -95,11 +95,11 @@ def main():
     # continue. We will use JSON format.
 
     # Convert np arrays to python lists for serialisation.
-    piecesList = [[int(cell) for cell in row] for arr in pieces for row in arr]
-    array_of_2d_arrays_as_lists = [arr.tolist() for arr in pieces]
-
-    with open('pieces.json', 'w') as piecesFile:
-        json.dump(array_of_2d_arrays_as_lists, piecesFile, indent=2)
+    # piecesList = [[int(cell) for cell in row] for arr in pieces for row in arr]
+    # array_of_2d_arrays_as_lists = [arr.tolist() for arr in pieces]
+    #
+    # with open('pieces.json', 'w') as piecesFile:
+    #     json.dump(array_of_2d_arrays_as_lists, piecesFile, indent=2)
 
 
 if __name__ == '__main__':

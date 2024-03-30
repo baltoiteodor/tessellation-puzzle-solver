@@ -58,7 +58,7 @@ class ShapeFinder():
         # Smoothen contours - shapes at an angle might have noise.
         smoothed_contours = []
         # Higher epsilon means aggressive smoothing, low epsilon keeps more of the details.
-        epsilon = 0.01
+        epsilon = 0.02
         for i, contour in enumerate(contours):
             # Approximate the contour to smoothen it
             smooth_contour = cv.approxPolyDP(contour, epsilon * cv.arcLength(contour, True), True)
@@ -67,6 +67,11 @@ class ShapeFinder():
             smoothed_contours.append(smooth_contour)
             if self._logger:
                 print(f"Smoothed contour {i}: ", smooth_contour)
+
+        contour_image_smt = np.zeros_like(image)
+        cv.drawContours(contour_image_smt, smoothed_contours, -1, (0, 255, 0), 2)
+        cv.imwrite('contoursagainsmoothed.jpg', contour_image_smt)
+
 
         if self._logger:
             self._endTime = timer()

@@ -48,6 +48,11 @@ def setPiece(currBoard: Board, board: Board, outputMatrix: Board,
 
     for i in range(row, row + piece.rows()):
         for j in range(col, col + piece.columns()):
+            if i >= len(board) or j >= len(board[0]):
+                print("Naa")
+                print(piece)
+                print(row, col)
+                prettyPrintGrid(currBoard)
             currBoard[i][j] += piece.pixelAt(i - row, j - col)
             outputMatrix[i][j] = piece.orderNum()
 
@@ -75,17 +80,17 @@ def isValid(currBoard: Board, board: Board, piece: Piece, row: int, col: int):
         cnt0 += 1
 
     # Subtract from current position, from the column cnt0.
+    # print("Before: ", row, col)
     if col >= cnt0:
         col -= cnt0
-    # if cnt0:
-    #     print("THIS SHIT HAPPENED.", cnt0)
-    if row + piece.rows() - 1 > len(currBoard) or col + piece.columns() - 1 > len(currBoard[0]):
-        return False
+    # print("After: ", row, col, cnt0)
+    if row + piece.rows() - 1 >= len(currBoard) or col + piece.columns() - 1 >= len(currBoard[0]):
+        return False, row, col
     for i in range(row, row + piece.rows()):
         for j in range(col, col + piece.columns()):
             if currBoard[i][j] + piece.pixelAt(i - row, j - col) > board[i][j]:
-                return False
-    return True
+                return False, row, col
+    return True, row, col
 
 
 def nextPos(currBoard: Board, row: int, col: int):

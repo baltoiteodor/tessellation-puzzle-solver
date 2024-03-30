@@ -64,15 +64,17 @@ class Solver:
                 rgLen = 1
 
             for _ in range(rgLen):
-                if isValid(currentBoard, board, piece, row, col):
-                    setPiece(currentBoard, board, outputMatrix, piece, row, col)
+                decision, newRow, newCol = isValid(currentBoard, board, piece, row, col)
+                if decision:
+                    # print("After valid: ", newRow, newCol)
+                    setPiece(currentBoard, board, outputMatrix, piece, newRow, newCol)
                     # Remove from list of pieces.
                     pieces.remove(piece)
-                    if self._backtrack(currentBoard, board, outputMatrix, pieces, row, col):
+                    if self._backtrack(currentBoard, board, outputMatrix, pieces, newRow, newCol):
                         return True
                     pieces.append(piece)
 
                     # Backtrack, remove the piece.
-                    removePiece(currentBoard, piece, row, col)
+                    removePiece(currentBoard, piece, newRow, newCol)
                 rotatePiece(piece)
         return False
