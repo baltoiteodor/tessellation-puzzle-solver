@@ -4,12 +4,16 @@
 import argparse
 import json
 
+import cv2
 import cv2 as cv
+import numpy as np
 
 from shape_finder.finder import ShapeFinder
 from shape_processor.processor import Processor
 from shape_rotation.rotator import Rotator
 from puzzle_solver.solver import Solver
+
+import matplotlib.pyplot as plt
 
 
 def main():
@@ -77,6 +81,14 @@ def main():
 
     puzzleSolver = Solver(solverLog | allLog)
     if puzzleSolver.solveBackTracking(pieces):
+        print("Solution in the RGB colour form: ")
+        print(puzzleSolver.getSolution())
+        rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
+
+        # Display the RGB array using Matplotlib
+        plt.imshow(rgbArray)
+        plt.axis('off')  # Turn off axis labels
+        plt.show()
         print("Puzzle is solvable.")
     else:
         print("Something is or went wrong with the puzzle.")

@@ -2,6 +2,8 @@ import cv2 as cv
 import numpy as np
 from timeit import default_timer as timer
 
+from misc.contour import Contour
+
 thresholdAngle = 3
 thresholdHeightDifference = 3
 
@@ -18,9 +20,9 @@ class Rotator:
             print("Checking shapes if they need rotating...")
 
         rotatedImage = np.zeros_like(image)
-        rotatedContours = []
+        # rotatedContours = []
 
-        cv.drawContours(rotatedImage, contours, 0, (255, 0, 0), 2)
+        # cv.drawContours(rotatedImage, contours, 0, (255, 0, 0), 2)
 
         for i, contour in enumerate(contours):
             # Calculate the lowest point and lowest of its neighbours.
@@ -31,10 +33,10 @@ class Rotator:
             if yDifference < thresholdHeightDifference:
                 if self._logger:
                     print(f"Difference in angle not above certain threshold for contour number {i}.")
-                rotatedContours.append(contour)
+                # rotatedContours.append(Contour(contour, image, i))
                 # Also draw for debugging purposes.
                 if self._logger:
-                    cv.drawContours(rotatedImage, [contour], 0, (255, 255, 255), 2)
+                    cv.drawContours(rotatedImage, [contour.getContour()], 0, (255, 255, 255), 2)
             else:
                 # Need to calculate the angle and rotate the piece to be straight.
                 angle = np.arctan2(lowestPoint[0][1] - secondPoint[0][1],
@@ -45,14 +47,15 @@ class Rotator:
                 # rotationMatrix = cv.getRotationMatrix2D(center, rotationAngle, 1.0)
                 #
                 # rotatedContour = cv.transform(np.array([contour]), rotationMatrix)[0]
-                rotatedContour = rotate(contour, lowestPoint, rotationAngle)
+                rotatedContour = rotate(contour.getContour(), lowestPoint, rotationAngle)
                 if self._logger:
                     print(f"Difference above certain threshold for contour number {i}: {contour}")
                     print("Angle:", angle)
                     print("Lowest point: ", lowestPoint)
                     cv.drawContours(rotatedImage, [rotatedContour.astype(int)], -1, (0, 255, 0), thickness=cv.FILLED)
 
-                rotatedContours.append(rotatedContour)
+                contour.setContour(rotatedContour)
+                # rotatedContours.append(Contour(rotatedContour, image, i))
 
         cv.imwrite("straight.jpg", rotatedImage)
 
@@ -63,7 +66,7 @@ class Rotator:
             print("----------------------------")
             print("---")
 
-        return rotatedContours
+        return contours
 
 
 # Cartesian to Polar coordinates
@@ -85,27 +88,28 @@ def lowestSide(contour):
     maxY = -1
     lowestPoint = []
     secondPoint = []
-    size = len(contour)
+    size = len(contour.getContour())
+    cnt = contour.getContour()
     for i in range(size):
-        if contour[i][0][1] >= maxY:
-            lowestPoint = contour[i]
+        if cnt[i][0][1] >= maxY:
+            lowestPoint = cnt[i]
             left = []
             right = []
             if i != 0 and i != size - 1:
-                left = contour[i - 1]
-                right = contour[i + 1]
+                left = cnt[i - 1]
+                right = cnt[i + 1]
             elif i == 0:
-                left = contour[size - 1]
-                right = contour[i + 1]
+                left = cnt[size - 1]
+                right = cnt[i + 1]
             elif i == size - 1:
-                left = contour[i - 1]
-                right = contour[0]
+                left = cnt[i - 1]
+                right = cnt[0]
 
             if left[0][1] < right[0][1]:
                 secondPoint = right
             else:
                 secondPoint = left
-            maxY = contour[i][0][1]
+            maxY = cnt[i][0][1]
     return lowestPoint, secondPoint
 
 

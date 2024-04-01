@@ -4,6 +4,7 @@ from timeit import default_timer as timer
 
 from misc.piece import Piece
 from misc.types import *
+from misc.contour import *
 
 MAXREZ = 1024
 DECREMENT = 0.1
@@ -11,7 +12,7 @@ DECREMENT = 0.1
 
 class Processor:
     def __init__(self, contours, logger: bool):
-        self.contours = contours
+        self._contours: Contours = contours
         self._logger = logger
         self.totalArea = 0
         self._pieces = []
@@ -28,12 +29,9 @@ class Processor:
             print("Looking for the smallest edge in the contours for a starting value.")
 
         smallestEdge = MAXREZ
-        for c in self.contours:
-            # print("piece.py: ", c.squeeze())
-            self.totalArea += cv.contourArea(c)
-            # min_rect = cv.minAreaRect(c)
-            # contourToRectangle[c] = min_rect
-            vertices = c.squeeze()
+        for c in self._contours:
+            self.totalArea += c.getArea()
+            vertices = c.getContour().squeeze()
             # Calculate distances between consecutive vertices
             distances = [np.linalg.norm(vertices[i] - vertices[(i + 1) % len(vertices)]) for i in range(len(vertices))]
             # Find the minimum distance
@@ -49,24 +47,23 @@ class Processor:
 
         # Testing purposes
         # TODO: remove this sometime.
-        output_image = np.zeros((1000, 1000, 3), dtype=np.uint8)
-        color_contour = (0, 255, 0)  # Green color for contours
-        color_rect = (0, 0, 255)  # Red color for rectangles
+        # output_image = np.zeros((1000, 1000, 3), dtype=np.uint8)
+        # color_contour = (0, 255, 0)  # Green color for contours
+        # color_rect = (0, 0, 255)  # Red color for rectangles
 
         while error > 0.05 and unitLen > 0:
             # Make grid for each contour
             self._pieces = []
             error = 0.0
-            for c in self.contours:
+            for c in self._contours:
                 coveredArea = 0.0
-                pieceArea = cv.contourArea(c)
-                rect = cv.minAreaRect(c)
-                centre, size, angle = rect
+                pieceArea = c.getArea()
+                rect = c.getMinAreaRect()
 
-                cv.drawContours(output_image, [c], -1, color_contour, 2)
+                # cv.drawContours(output_image, [c.getContour()], -1, color_contour, 2)
                 box = cv.boxPoints(rect)
                 box = np.int0(box)
-                cv.drawContours(output_image, [box], 0, color_rect, 2)
+                # cv.drawContours(output_image, [box], 0, color_rect, 2)
 
                 # I cannot figure out why the dimensions keep on switching randomly. TopLeft will be min x min y.
 
@@ -95,7 +92,7 @@ class Processor:
                     while unitY < botRightY:
                         # Find centre of grid unit, check if inside the contour.
                         centreUnit = (int(unitX + unitLen / 2), int(unitY + unitLen / 2))
-                        isIn = cv.pointPolygonTest(c, centreUnit, False)
+                        isIn = cv.pointPolygonTest(c.getContour(), centreUnit, False)
 
                         if isIn >= 0:
                             # Mark this unit as 1 in the grid. 
@@ -128,7 +125,7 @@ class Processor:
                 while np.all(grid[0, :] == 0):
                     grid = grid[1:, :]
 
-                newPiece: Piece = Piece(grid)
+                newPiece: Piece = Piece(grid, c.getColour())
                 newPiece.canRotate(not (noOnes == newPiece.area()))
                 self._pieces.append(newPiece)
                 # Error is the maximum error per piece.
@@ -138,7 +135,7 @@ class Processor:
                     # No point in trying for other pieces.
                     break
 
-            cv.imwrite('cnt_and_rect.jpg', output_image)
+            # cv.imwrite('cnt_and_rect.jpg', output_image)
             unitLen -= DECREMENT
         # While loop complete, should have the pieces ready.
         if self._logger:

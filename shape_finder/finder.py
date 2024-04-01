@@ -4,6 +4,8 @@ import cv2 as cv
 import numpy as np
 from timeit import default_timer as timer
 
+from misc.contour import Contour
+
 
 class ShapeFinder():
     def __init__(self, logger: bool):
@@ -59,12 +61,16 @@ class ShapeFinder():
         smoothed_contours = []
         # Higher epsilon means aggressive smoothing, low epsilon keeps more of the details.
         epsilon = 0.02
+
+        contourList = []
         for i, contour in enumerate(contours):
             # Approximate the contour to smoothen it
             smooth_contour = cv.approxPolyDP(contour, epsilon * cv.arcLength(contour, True), True)
 
             # Append the smoothed contour to the list
             smoothed_contours.append(smooth_contour)
+            contourList.append(Contour(smooth_contour, image, i))
+
             if self._logger:
                 print(f"Smoothed contour {i}: ", smooth_contour)
 
@@ -72,11 +78,10 @@ class ShapeFinder():
         cv.drawContours(contour_image_smt, smoothed_contours, -1, (0, 255, 0), 2)
         cv.imwrite('contoursagainsmoothed.jpg', contour_image_smt)
 
-
         if self._logger:
             self._endTime = timer()
             print(f"Exiting ShapeFinder class: {self._endTime - self._startTime}...")
             print("---")
             print("----------------------------")
             print("---")
-        return smoothed_contours
+        return contourList

@@ -7,12 +7,14 @@ class Piece:
     _orderNum: int = 0
     _grid: Grid = None
     _rotatable: bool = False
+    _colour: Colour = None
 
-    def __init__(self, grid: Grid):
+    def __init__(self, grid: Grid, colour: Colour):
         self._numRows = len(grid)
         self._numCols = len(grid[0])
         self._orderNum = 0
         self._grid = grid
+        self._colour = colour
 
     def canRotate(self, canRotate: bool):
         self._rotatable = canRotate
@@ -54,8 +56,11 @@ class Piece:
     def setGrid(self, grid: Grid):
         self._grid = grid
 
+    def getColour(self):
+        return self._colour
+
     def __repr__(self):
-        return f"Piece {self._orderNum} of size {self._numRows} x {self._numCols}:\n{self._grid}"
+        return f"Piece {self._orderNum} of size {self._numRows} x {self._numCols} and colour {self._colour}:\n{self._grid}"
 
     def __eq__(self, other):
         if isinstance(other, Piece):

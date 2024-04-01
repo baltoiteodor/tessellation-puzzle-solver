@@ -6,6 +6,7 @@ class Solver:
     def __init__(self, logger: bool):
         self._logger = logger
         self._startTime = self._endTime = 0
+        self._solution = None
 
     # The solve method will take as input an array of 2d arrays representing puzzle pieces and try to solve the puzzle.
     def solveBackTracking(self, pieces: Pieces):
@@ -30,7 +31,8 @@ class Solver:
         # piecesIndex = [(x, index + 1) for index, x in enumerate(pieces)]
         for index, piece in enumerate(pieces):
             piece.setOrderNumber(index + 1)
-
+        # Remember colours of pieces.
+        piecesColour = [pc.getColour() for pc in pieces]
         # We will start the bkt from empty board.
         startingBoard = emptyBoard(boardPiece.rows(), boardPiece.columns())
         outputMatrix = emptyBoard(boardPiece.rows(), boardPiece.columns())
@@ -39,7 +41,18 @@ class Solver:
             print("Indexed pieces: ")
             print(pieces)
 
-        return self._backtrack(startingBoard, board, outputMatrix, pieces, 0, 0)
+        outcome = self._backtrack(startingBoard, board, outputMatrix, pieces, 0, 0)
+        if outcome:
+            # Construct matrix with colours.
+            self._solution = [[(0.0, 0.0, 0.0) for _ in range(boardPiece.columns())] for _ in range(boardPiece.rows())]
+
+            print("Solution in the piece form: ")
+            prettyPrintGrid(outputMatrix)
+            for i in range(boardPiece.rows()):
+                for j in range(boardPiece.columns()):
+                    indexPiece = outputMatrix[i][j]
+                    self._solution[i][j] = piecesColour[indexPiece - 1]
+        return outcome
 
     def _backtrack(self, currentBoard: Board, board: Board, outputMatrix: Board,
                    pieces: Pieces, currRow: int, currCol: int):
@@ -78,3 +91,6 @@ class Solver:
                     removePiece(currentBoard, piece, newRow, newCol)
                 rotatePiece(piece)
         return False
+
+    def getSolution(self):
+        return self._solution
