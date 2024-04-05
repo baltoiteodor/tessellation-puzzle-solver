@@ -47,11 +47,12 @@ class Rotator:
                 # rotationMatrix = cv.getRotationMatrix2D(center, rotationAngle, 1.0)
                 #
                 # rotatedContour = cv.transform(np.array([contour]), rotationMatrix)[0]
-                rotatedContour = rotate(contour.getContour(), lowestPoint, rotationAngle)
+                rotatedContour = contour.rotate(lowestPoint, rotationAngle)
                 if self._logger:
                     print(f"Difference above certain threshold for contour number {i}: {contour}")
                     print("Angle:", angle)
                     print("Lowest point: ", lowestPoint)
+                    print("New rotated contour: ", rotatedContour)
                     cv.drawContours(rotatedImage, [rotatedContour.astype(int)], -1, (0, 255, 0), thickness=cv.FILLED)
 
                 contour.setContour(rotatedContour)
@@ -67,21 +68,6 @@ class Rotator:
             print("---")
 
         return contours
-
-
-# Cartesian to Polar coordinates
-def cart2pol(x, y):
-    theta = np.arctan2(y, x)
-    rho = np.hypot(x, y)
-    return theta, rho
-
-
-# Polar to Cartesian
-def pol2cart(theta, rho):
-    x = rho * np.cos(theta)
-    y = rho * np.sin(theta)
-    return x, y
-
 
 # Given a contour, finds the side that has a point with max y coordinate. Describes it as a pair of two points.
 def lowestSide(contour):
@@ -112,27 +98,3 @@ def lowestSide(contour):
             maxY = cnt[i][0][1]
     return lowestPoint, secondPoint
 
-
-def rotate(contour, point, angle: float):
-    pointY = point[0][1]
-    pointX = point[0][0]
-
-    # translate to origin.
-    cntTrans = contour - [pointX, pointY]
-
-    coordinates = cntTrans[:, 0, :]
-    xs, ys = coordinates[:, 0], coordinates[:, 1]
-    thetas, rhos = cart2pol(xs, ys)
-
-    thetas = np.rad2deg(thetas)
-    thetas = (thetas + angle) % 360
-    thetas = np.deg2rad(thetas)
-
-    xs, ys = pol2cart(thetas, rhos)
-
-    cntTrans[:, 0, 0] = xs
-    cntTrans[:, 0, 1] = ys
-
-    cntRotated = cntTrans + [pointX, pointY]
-    cntRotated = cntRotated.astype(np.int32)
-    return cntRotated

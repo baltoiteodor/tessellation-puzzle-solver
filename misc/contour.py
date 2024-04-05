@@ -7,12 +7,31 @@ from misc.types import *
 # Receives an openCV contour, construct an object that adds a colour aspect to it.
 class Contour:
     def __init__(self, contour, image, ordNum: int):
-        self._contour = contour
+        self._contour = self._originalContour = contour
         self._image = image
         self._ordNum = ordNum
         self._initialize()
+        self._rotated = False
+        self._lowestPoint = None
+        self._angle = 0
         self._colour = self._calculateColour()
 
+    # def setUpColourMap(self, rotatedContour):
+    #     r, g, b = self._colour
+    #     rotatedImage = np.zeros_like(self._image)
+    #     cv2.drawContours(rotatedImage, rotatedContour, -1, (b, g, r), thickness=cv2.FILLED)
+    #
+    #     # mask the region inside the rotated contour.
+    #     mask = np.zeros_like(self._image)
+    #     cv2.drawContours(mask, [self._contour], -1, (255, 255, 255), thickness=cv2.FILLED)
+    #
+    #     # Transfer colors from original image to rotated image within the masked region
+    #     resultImage = np.where(mask != 0, self._image, rotatedImage)
+    #
+    #     return resultImage
+
+    def getOrdNum(self):
+        return self._ordNum
 
     def getColour(self):
         return self._colour
@@ -70,9 +89,76 @@ class Contour:
 
         return medianR, medianG, medianB
 
+    # If the contour was not rotated then the point remains the same.
+    # Otherwise, we rotate the point.
+    def getOriginalCoord(self, point):
+        if not self._rotated:
+            return point
+        # Apply the same function on the point, but with opposite angle.
+        x, y = point
+        transX = x - self._lowestPoint[0][0]
+        transY = y - self._lowestPoint[0][1]
+
+        theta, rho = cart2pol(transX, transY)
+
+        theta = np.rad2deg(theta)
+        theta = (theta - self._angle) % 360
+        theta = np.deg2rad(theta)
+
+        newX, newY = pol2cart(theta, rho)
+
+        originalX = (newX + x).astype(np.int32)
+        originalY = (newY + y).astype(np.int32)
+
+        return originalX, originalY
+
+    def rotate(self, point, angle: float):
+        self._rotated = True
+        self._angle = angle
+        self._lowestPoint = point
+        pointY = point[0][1]
+        pointX = point[0][0]
+
+        # translate to origin.
+        cntTrans = self._contour - [pointX, pointY]
+
+        coordinates = cntTrans[:, 0, :]
+        xs, ys = coordinates[:, 0], coordinates[:, 1]
+        thetas, rhos = cart2pol(xs, ys)
+
+        thetas = np.rad2deg(thetas)
+        thetas = (thetas + angle) % 360
+        thetas = np.deg2rad(thetas)
+
+        xs, ys = pol2cart(thetas, rhos)
+
+        cntTrans[:, 0, 0] = xs
+        cntTrans[:, 0, 1] = ys
+
+        cntRotated = cntTrans + [pointX, pointY]
+        cntRotated = cntRotated.astype(np.int32)
+        return cntRotated
+
+    def getOriginalContour(self):
+        return self._originalContour
+
     def __repr__(self):
         return f"Contour {self._ordNum} with colour " \
                f"{self._colour} looks like this: \n {self._contour}"
 
 
 Contours = List[Contour]
+
+
+# Cartesian to Polar coordinates
+def cart2pol(x, y):
+    theta = np.arctan2(y, x)
+    rho = np.hypot(x, y)
+    return theta, rho
+
+
+# Polar to Cartesian
+def pol2cart(theta, rho):
+    x = rho * np.cos(theta)
+    y = rho * np.sin(theta)
+    return x, y

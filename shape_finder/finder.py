@@ -6,8 +6,10 @@ from timeit import default_timer as timer
 
 from misc.contour import Contour
 
+MinVertices = 3
+MaxVertices = 50
 
-class ShapeFinder():
+class ShapeFinder:
     def __init__(self, logger: bool):
         self._logger = logger
         self._startTime = self._endTime = 0
@@ -67,7 +69,10 @@ class ShapeFinder():
             # Approximate the contour to smoothen it
             smooth_contour = cv.approxPolyDP(contour, epsilon * cv.arcLength(contour, True), True)
 
-            # Append the smoothed contour to the list
+            # Append the smoothed contour to the list if the contour has at least 4 vertices.
+            if len(smooth_contour) <= MinVertices or len(smooth_contour) >= MaxVertices:
+                continue
+
             smoothed_contours.append(smooth_contour)
             contourList.append(Contour(smooth_contour, image, i))
 

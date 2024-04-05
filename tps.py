@@ -34,6 +34,9 @@ def main():
     argsParser.add_argument("-logRotator", "--loggerRotator", action="store_true", required=False,
                             help="Enable this for prints from rotator code")
 
+    argsParser.add_argument("-O", "--optimise", required=False,
+                            help="Enable optimisations to the solving algorithm with different modes. \n- 1: pieces "
+                                 "rotate the optimal number of times.")
     # Parse the arguments.
     args = vars(argsParser.parse_args())
 
@@ -60,7 +63,7 @@ def main():
     # Grid the smallest rectangle in a grid with units lxl, where l is a divisor of the smallest side.
     # Look for the biggest l s.t. the area lost in the process is less than a given percent.
     processor = Processor(rotatedContours, processorLog | allLog)
-    lMax = processor.findUnit()
+    lMax = processor.findUnit(image)
     pieces = processor.getPieces()
 
     print("Here are the grids for the pieces:")
@@ -78,11 +81,13 @@ def main():
     #
 
     # Python puzzle puzzle_solver.
-
-    puzzleSolver = Solver(solverLog | allLog)
+    optimise = 0
+    if args["optimise"] is not None:
+        optimise = int(args["optimise"])
+    puzzleSolver = Solver(solverLog | allLog, image, optimise)
     if puzzleSolver.solveBackTracking(pieces):
-        print("Solution in the RGB colour form: ")
-        print(puzzleSolver.getSolution())
+        # print("Solution in the RGB colour form: ")
+        # print(puzzleSolver.getSolution())
         rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
 
         # Display the RGB array using Matplotlib

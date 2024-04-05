@@ -2,12 +2,36 @@ import numpy as np
 import cv2 as cv
 from timeit import default_timer as timer
 
+from numpy import shape
+
 from misc.piece import Piece
 from misc.types import *
 from misc.contour import *
 
 MAXREZ = 1024
 DECREMENT = 0.1
+
+
+# Center is in width, height format
+def colourCenteredAt(image, center):
+    x, y = center
+    # print(center, shape(image))
+    b, g, r = image[y, x]
+    height, width = image.shape[:2]
+    dx = [-1, 0, 1, 0]
+    dy = [0, 1, 0, -1]
+    num = 1
+    for i in range(4):
+        ny = y + dy[i]
+        nx = x + dx[i]
+        if 0 <= ny < height and 0 <= nx < width:
+            bs, gs, rs = image[y + dy[i], x + dx[i]]
+            b += bs
+            g += gs
+            r += rs
+            num += 1
+
+    return r // num, g // num, b // num
 
 
 class Processor:
@@ -18,7 +42,7 @@ class Processor:
         self._pieces = []
         self._startTime = self._endTime = 0
 
-    def findUnit(self):
+    def findUnit(self, image):
         # Declare a dictionary from contours to their minimum rectangle for future use
         # Find the smallest edge first, this will be a potential candidate for the unit length.
 
@@ -67,6 +91,7 @@ class Processor:
 
                 # I cannot figure out why the dimensions keep on switching randomly. TopLeft will be min x min y.
 
+                # x is width, y is height.
                 topLeftX = np.min(box[:, 0])
                 topLeftY = np.min(box[:, 1])
                 botRightX = np.max(box[:, 0])
@@ -81,10 +106,13 @@ class Processor:
                 # Due to width/height switching I will calculate my own.
                 width = botRightX - topLeftX
                 height = botRightY - topLeftY
-                grid = np.zeros((int(width / unitLen + 1), int(height / unitLen + 1)))
+                rows = int(width / unitLen + 1)
+                cols = int(height / unitLen + 1)
+                # Invert the x, y to y, x in the grid, so it looks like in the image.
+                grid = np.zeros((cols, rows))
+                # colours = [[(0.0, 0.0, 0.0) for _ in range(rows)] for _ in range(cols)]
                 # Use this to determine if the piece is rotatable.
                 noOnes: int = 0
-                # print(grid)
                 while unitX < botRightX:  # When the new unit x coordinate is out of bounds.
                     indexY = 0
                     unitY = topLeftY
@@ -96,37 +124,44 @@ class Processor:
 
                         if isIn >= 0:
                             # Mark this unit as 1 in the grid. 
-                            grid[indexX][indexY] = 1
+                            grid[indexY][indexX] = 1
+                            # originalCoord = c.getOriginalCoord(centreUnit)
+                            # colours[indexY][indexX] = colourCenteredAt(image, originalCoord)
                             noOnes += 1
                         else:
                             # Mark as 0.     
-                            grid[indexX][indexY] = 0
+                            grid[indexY][indexX] = 0
+                            # colours[indexY][indexX] = (0, 0, 0)
                         # Add to covered area
-                        coveredArea += grid[indexX][indexY] * unitLen * unitLen
+                        coveredArea += grid[indexY][indexX] * unitLen * unitLen
                         unitY += unitLen
                         indexY += 1
                     unitX += unitLen
                     indexX += 1
                 # They appear as 1.0 for some reason.
                 grid = grid.astype(int)
-
+                # colours = np.array(colours)
                 # Remove the last columns if all zero.
                 while np.all(grid[:, -1] == 0):
                     grid = grid[:, :-1]
+                    # colours = colours[:, :-1]
                 # Remove leading columns with all zeros
                 while np.all(grid[:, 0] == 0):
                     grid = grid[:, 1:]
+                    # colours = colours[:, 1:]
 
                 # Remove the last row if all zero.
                 while np.all(grid[-1, :] == 0):
                     grid = grid[:-1, :]
+                    # colours = colours[:-1, :]
 
                 # Remove leading rows with all zeros
                 while np.all(grid[0, :] == 0):
                     grid = grid[1:, :]
+                    # colours = colours[1:, :]
 
-                newPiece: Piece = Piece(grid, c.getColour())
-                newPiece.canRotate(not (noOnes == newPiece.area()))
+                newPiece: Piece = Piece(c, grid, c.getColour(), unitLen, (topLeftX, topLeftY))
+                newPiece.canBeBoard(noOnes == newPiece.area())
                 self._pieces.append(newPiece)
                 # Error is the maximum error per piece.
                 error = max(error, (abs(1 - coveredArea / pieceArea)))
