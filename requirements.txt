@@ -3,4 +3,6 @@ opencv-python
 imutils
 numpy
 matplotlib
+dlx
+colormath
 ###### Requirements with Version Specifiers ######

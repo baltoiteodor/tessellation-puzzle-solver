@@ -33,13 +33,20 @@ def main():
                             help="Enable this for prints from finder code")
     argsParser.add_argument("-logRotator", "--loggerRotator", action="store_true", required=False,
                             help="Enable this for prints from rotator code")
+    argsParser.add_argument("-D", "--DLX", required=False,
+                            help="Enable DLX algorithm for solving. 0 - self made; 1 - PyPy made.")
+    argsParser.add_argument("-B", "--BKT", required=False,
+                            help="Enable BKT algorithm for solving. 0 - no optimisation; "
+                                 "1 - pieces rotate the optimal number of times and are pre-calculated when pieces are created.")
+    argsParser.add_argument("-C", "--colour", action="store_true", required=False,
+                            help="By enabling this option colours now matter in solving the puzzle.")
+    argsParser.add_argument("-S", "--show", action="store_true", required=False,
+                            help="By enabling this option you can visualise how the puzzle looks solved and how the pieces look.")
 
-    argsParser.add_argument("-O", "--optimise", required=False,
-                            help="Enable optimisations to the solving algorithm with different modes. \n- 1: pieces "
-                                 "rotate the optimal number of times.")
     # Parse the arguments.
     args = vars(argsParser.parse_args())
 
+    show = args["show"]
     # Set the logger flags to false
     allLog = args["logger"]
     detectorLog = args["loggerDetector"]
@@ -66,8 +73,9 @@ def main():
     lMax = processor.findUnit(image)
     pieces = processor.getPieces()
 
-    print("Here are the grids for the pieces:")
-    print(pieces)
+    if show:
+        print("Here are the grids for the pieces:")
+        print(pieces)
 
     #
     ##
@@ -81,19 +89,26 @@ def main():
     #
 
     # Python puzzle puzzle_solver.
-    optimise = 0
-    if args["optimise"] is not None:
-        optimise = int(args["optimise"])
-    puzzleSolver = Solver(solverLog | allLog, image, optimise)
-    if puzzleSolver.solveBackTracking(pieces):
-        # print("Solution in the RGB colour form: ")
-        # print(puzzleSolver.getSolution())
-        rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
 
-        # Display the RGB array using Matplotlib
-        plt.imshow(rgbArray)
-        plt.axis('off')  # Turn off axis labels
-        plt.show()
+    colour = args["colour"]
+
+    bkt = -1
+    if args["BKT"] is not None:
+        bkt = int(args["BKT"])
+
+    dlx = -1
+    if args["DLX"] is not None:
+        dlx = int(args["DLX"])
+    puzzleSolver = Solver(solverLog | allLog, image, bkt, dlx, colour)
+
+    if puzzleSolver.solveBackTracking(pieces):
+        if show:
+            rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
+
+            # Display the RGB array using Matplotlib
+            plt.imshow(rgbArray)
+            plt.axis('off')  # Turn off axis labels
+            plt.show()
         print("Puzzle is solvable.")
     else:
         print("Something is or went wrong with the puzzle.")

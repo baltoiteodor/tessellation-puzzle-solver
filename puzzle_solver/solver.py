@@ -1,16 +1,20 @@
 from matplotlib import pyplot as plt
 
+from puzzle_solver.DLXPyPy import DLX
+from puzzle_solver.ExactCoverConverter import ExactCoverConverter
 from puzzle_solver.helper import *
 from timeit import default_timer as timer
 
 
 class Solver:
-    def __init__(self, logger: bool, image, optimise: int):
+    def __init__(self, logger: bool, image, bkt: int, dlx: int, colour: bool):
         self._logger = logger
         self._startTime = self._endTime = 0
         self._solution = None
         self._image = image
-        self._optimisationMode = optimise
+        self._bkt = bkt
+        self._dlx = dlx
+        self._colourMatters = colour
 
     # The solve method will take as input an array of 2d arrays representing puzzle pieces and try to solve the puzzle.
     def solveBackTracking(self, pieces: Pieces):
@@ -46,10 +50,13 @@ class Solver:
             print("Indexed pieces: ")
             print(pieces)
 
-        if self._optimisationMode == 0:
+        outcome = None
+        if self._bkt == 0:
             outcome = self._backtrackNoOptimisation(startingBoard, board, outputMatrix, pieces, 0, 0)
-        elif self._optimisationMode == 1:
+        elif self._bkt == 1:
             outcome = self._backtrackRotationOptimisation(startingBoard, board, outputMatrix, pieces, 0, 0)
+        elif self._dlx != -1:
+            outcome = self._DLX(boardPiece, pieces, self._dlx, outputMatrix)
 
         if outcome:
             # Construct matrix with colours.
@@ -82,7 +89,8 @@ class Solver:
         for piece in pieces:
             # Move to next position with the remaining pieces if at least one rotation is valid.
             for _ in range(4):
-                decision, newRow, newCol = isValid(currentBoard, board, self._colourMap, piece, row, col)
+                decision, newRow, newCol = isValid(currentBoard, board, self._colourMap,
+                                                   piece, row, col, self._colourMatters)
                 # if self._logger:
                 #     print(f"Trying piece {piece} in position {row, col}. \nWIth current board")
                 #     prettyPrintGrid(currentBoard)
@@ -122,7 +130,8 @@ class Solver:
             # Move to next position with the remaining pieces if at least one rotation is valid.
             rgLen = self._pickRangeOptimiser(piece)
             for _ in range(rgLen):
-                decision, newRow, newCol = isValid(currentBoard, board, self._colourMap, piece, row, col)
+                decision, newRow, newCol = isValid(currentBoard, board, self._colourMap,
+                                                   piece, row, col, self._colourMatters)
                 # if self._logger:
                 #     print(f"Trying piece {piece} in position {row, col}. \nWIth current board")
                 #     prettyPrintGrid(currentBoard)
@@ -142,8 +151,51 @@ class Solver:
                 rotatePiece(piece)
         return False
 
+    def _DLX(self, boardPiece: Piece, pieces: Pieces, version, outputMatrix):
+        converter = ExactCoverConverter(boardPiece, pieces, self._colourMap, version, self._colourMatters)
+        converter.constructMatrix()
+        if self._logger:
+            converter.printMatrix()
+        outcome = False
+        if version:
+            labels, rows = converter.getPyPy()
+            outcome = self._solveDLXPyPy(labels, rows, boardPiece, outputMatrix)
+            if outcome and self._logger:
+                print("Puzzle completed successfully.")
+                self._endTime = timer()
+                print(f"Exiting Solver class: {self._endTime - self._startTime}...")
+                print("---")
+                print("----------------------------")
+                print("---")
+        return outcome
+
+    def _solveDLXPyPy(self, labels, rows, boardPiece, outputMatrix):
+        # labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+        # rows = [[0, 3, 6], [0, 3], [3, 4, 6], [2, 4, 5], [1, 2, 5, 6], [1, 6]]
+        instance = DLX.genInstance(labels, rows)
+
+        selected = DLX.solveInstance(instance)
+        # DLX.printColumnsPerRow(instance, selected)
+
+        # Construct outputMatrix.
+        boardSize = boardPiece.rows() * boardPiece.columns()
+        _, _, col, _ = instance
+        if selected is None:
+            return False
+        for row in selected:
+            # For each selected row, place it in the output matrix.
+            chosenPiece = rows[row][-1] - boardSize + 1
+            for element in rows[row][:-1]:
+                r = int(element / boardPiece.columns())
+                c = element % boardPiece.columns()
+                outputMatrix[r][c] = chosenPiece
+        if self._logger:
+            prettyPrintGrid(outputMatrix)
+
+        return True
+
     def _pickRangeOptimiser(self, piece):
-        if self._optimisationMode == 0:
+        if self._bkt == 0:
             return 4
         return piece.getRotations()
 

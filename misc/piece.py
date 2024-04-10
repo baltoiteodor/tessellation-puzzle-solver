@@ -14,17 +14,21 @@ class Piece:
     _numRotations = 4
     _currentRotation = 0
     _allGrids: [Grid] = None
+    _rows: [int] = None
+    _cols: [int] = None
 
     def __init__(self, originalContour: Contour, grid: Grid, colour: Colour, unitLen, topLeft):
         self._originalContour = originalContour
         self._numRows = len(grid)
         self._numCols = len(grid[0])
-        print("rows:", self._numRows)
-        print(grid)
         self._orderNum = 0
         self._grid = grid
         self._allGrids = []
         self._allGrids.append(grid)
+        self._rows = []
+        self._rows.append(len(grid))
+        self._cols = []
+        self._cols.append(len(grid[0]))
         self._colour = colour
         self._unitLen = unitLen
         self._topLeft = topLeft
@@ -36,10 +40,8 @@ class Piece:
         # Calculate numRotations in general by rotating the piece and add it to the map.
         self._numRotations = 1
         self._boardable = canBoard
-        print("Entered here.")
-        print(self._allGrids)
         while True:
-            self._rotate()
+            self._rotate90()
             # print(self.getGrid())
             # print(self._allGrids[0])
             if np.array_equal(self.getGrid(), self._allGrids[0]):
@@ -47,11 +49,32 @@ class Piece:
             self._numRotations += 1
             self._allGrids.append(self.getGrid())
 
+        # Clock-wise rotations complete. Next are the horizontal flip + rotations.
+        self._flipH()
+        if np.array_equal(self.getGrid(), self._allGrids[0]):
+            # No more rotations
+            self.setGrid(self._allGrids[0])
+            return
+        rot = self._numRotations
+        self._numRotations += 1
+        self._allGrids.append(self.getGrid())
+        while True:
+            self._rotate90()
+            if np.array_equal(self.getGrid(), self._allGrids[rot]):
+                break
+            self._numRotations += 1
+            self._allGrids.append(self.getGrid())
+
         # Now we have all grids and their number.
-        print(self._allGrids)
+        # print(f"For piece {self._grid}, we have rotations: ", self._allGrids)
+        self.setGrid(self._allGrids[0])
+
+    # Flips the matrix horizontally.
+    def _flipH(self):
+        self.setGrid(np.flip(self._grid, axis=1))
 
     # Rotates piece clock-wise 90 degrees.
-    def _rotate(self):
+    def _rotate90(self):
         rotatedGrid = np.zeros((self.columns(), self.rows()), dtype=int)
         # print(rotatedGrid)
         for i in range(self.rows()):
@@ -71,6 +94,8 @@ class Piece:
             self._currentRotation = 0
 
         self.setGrid(self._allGrids[self._currentRotation])
+        self.setRowsNum(len(self._grid))
+        self.setColsNum(len(self._grid[0]))
 
     def getTopLeft(self):
         return self._topLeft
@@ -83,6 +108,7 @@ class Piece:
 
     def setOrderNumber(self, num: int):
         self._orderNum = num
+
 
     def rows(self):
         return self._numRows
@@ -134,6 +160,11 @@ class Piece:
 
     def getUnitLen(self):
         return self._unitLen
+
+    def increaseCurrentRotation(self):
+        self._currentRotation += 1
+        if self._currentRotation == self._numRotations:
+            self._currentRotation = 0
 
     def __repr__(self):
         return f"Piece {self._orderNum} of size {self._numRows} x {self._numCols} and colour {self._colour}:" \
