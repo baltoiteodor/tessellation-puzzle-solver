@@ -5,7 +5,6 @@ from puzzle_solver.ExactCoverConverter import ExactCoverConverter
 from puzzle_solver.helper import *
 from timeit import default_timer as timer
 
-
 class Solver:
     def __init__(self, logger: bool, image, bkt: int, dlx: int, colour: bool):
         self._logger = logger
@@ -15,6 +14,9 @@ class Solver:
         self._bkt = bkt
         self._dlx = dlx
         self._colourMatters = colour
+        self._used = 0
+        self._sol = []
+        self._size = 0
 
     # The solve method will take as input an array of 2d arrays representing puzzle pieces and try to solve the puzzle.
     def solveBackTracking(self, pieces: Pieces):
@@ -50,6 +52,8 @@ class Solver:
             print("Indexed pieces: ")
             print(pieces)
 
+        self._size = len(pieces)
+        self._sol = [0 for _ in range(self._size)]
         outcome = None
         if self._bkt == 0:
             outcome = self._backtrackNoOptimisation(startingBoard, board, outputMatrix, pieces, 0, 0)
@@ -74,7 +78,7 @@ class Solver:
                                  pieces: Pieces, currRow: int, currCol: int):
         # Get the first 0 in the grid as updated position.
         row, col = nextPos(currentBoard, currRow, currCol)
-        if len(pieces) == 0 and row == -1 and col == -1:  # A.k.a. outside the grid and no pieces left.
+        if self._used == self._size and row == -1 and col == -1:  # A.k.a. outside the grid and no pieces left.
             if self._logger:
                 print("Puzzle completed successfully.")
                 self._endTime = timer()
@@ -82,11 +86,14 @@ class Solver:
                 print("---")
                 print("----------------------------")
                 print("---")
-            prettyPrintGrid(outputMatrix)
             return True
 
         # Try all possible pieces (with different rotations as well).
-        for piece in pieces:
+        for i in range(self._size):
+            piece = pieces[i]
+            if self._sol[i] == 1:
+                # Already in the solution
+                continue
             # Move to next position with the remaining pieces if at least one rotation is valid.
             for _ in range(4):
                 decision, newRow, newCol = isValid(currentBoard, board, self._colourMap,
@@ -100,10 +107,16 @@ class Solver:
                     #     print("Heh")
                     #     prettyPrintGrid(outputMatrix)
                     # Remove from list of pieces.
-                    pieces.remove(piece)
+                    # pieces.remove(piece)
+                    self._used += 1
+                    self._sol[i] = 1
+
                     if self._backtrackNoOptimisation(currentBoard, board, outputMatrix, pieces, newRow, newCol):
                         return True
-                    pieces.append(piece)
+
+                    self._used -= 1
+                    self._sol[i] = 0
+                    # pieces.append(piece)
 
                     # Backtrack, remove the piece.
                     removePiece(currentBoard, piece, newRow, newCol)
@@ -114,7 +127,7 @@ class Solver:
                                        pieces: Pieces, currRow: int, currCol: int):
         # Get the first 0 in the grid as updated position.
         row, col = nextPos(currentBoard, currRow, currCol)
-        if len(pieces) == 0 and row == -1 and col == -1:  # A.k.a. outside the grid and no pieces left.
+        if self._used == self._size and row == -1 and col == -1:  # A.k.a. outside the grid and no pieces left.
             if self._logger:
                 print("Puzzle completed successfully.")
                 self._endTime = timer()
@@ -122,17 +135,20 @@ class Solver:
                 print("---")
                 print("----------------------------")
                 print("---")
-            prettyPrintGrid(outputMatrix)
             return True
 
         # Try all possible pieces (with different rotations as well).
-        for piece in pieces:
+        for i in range(self._size):
+            piece = pieces[i]
+            if self._sol[i] == 1:
+                # Already in the solution
+                continue
             # Move to next position with the remaining pieces if at least one rotation is valid.
             rgLen = self._pickRangeOptimiser(piece)
             for _ in range(rgLen):
                 decision, newRow, newCol = isValid(currentBoard, board, self._colourMap,
                                                    piece, row, col, self._colourMatters)
-                # if self._logger:
+                # if self._logger and newRow == 0 and newCol == 0 and piece.orderNum() == 6:
                 #     print(f"Trying piece {piece} in position {row, col}. \nWIth current board")
                 #     prettyPrintGrid(currentBoard)
                 if decision:
@@ -141,14 +157,18 @@ class Solver:
                     #     print("Heh")
                     #     prettyPrintGrid(outputMatrix)
                     # Remove from list of pieces.
-                    pieces.remove(piece)
-                    if self._backtrackNoOptimisation(currentBoard, board, outputMatrix, pieces, newRow, newCol):
+                    self._sol[i] = 1
+                    self._used += 1
+                    if self._backtrackRotationOptimisation(currentBoard, board, outputMatrix, pieces, newRow, newCol):
                         return True
-                    pieces.append(piece)
+                    self._sol[i] = 0
+                    self._used -= 1
 
                     # Backtrack, remove the piece.
                     removePiece(currentBoard, piece, newRow, newCol)
                 rotatePiece(piece)
+
+
         return False
 
     def _DLX(self, boardPiece: Piece, pieces: Pieces, version, outputMatrix):

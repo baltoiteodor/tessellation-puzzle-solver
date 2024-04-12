@@ -85,7 +85,7 @@ class ExactCoverConverter:
 
     def printMatrix(self):
         if self._version:
-            print("Columns for the shit: ", self._pypyColumns)
+            print("Columns: ", self._pypyColumns)
             print("These rows be for pypy bro: ", self._pypyRows)
             return
 
