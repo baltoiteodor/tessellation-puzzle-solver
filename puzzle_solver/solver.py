@@ -74,6 +74,7 @@ class Solver:
                     self._solution[i][j] = piecesColour[indexPiece - 1]
         return outcome
 
+    #TODO: add flips as well.
     def _backtrackNoOptimisation(self, currentBoard: Board, board: Board, outputMatrix: Board,
                                  pieces: Pieces, currRow: int, currCol: int):
         # Get the first 0 in the grid as updated position.

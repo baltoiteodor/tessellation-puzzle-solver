@@ -8,6 +8,7 @@ import cv2
 import cv2 as cv
 import numpy as np
 
+from preprocessor.PreProcessor import PreProcessor
 from shape_finder.finder import ShapeFinder
 from shape_processor.processor import Processor
 from shape_rotation.rotator import Rotator
@@ -34,7 +35,7 @@ def main():
     argsParser.add_argument("-logRotator", "--loggerRotator", action="store_true", required=False,
                             help="Enable this for prints from rotator code")
     argsParser.add_argument("-D", "--DLX", required=False,
-                            help="Enable DLX algorithm for solving. 0 - self made; 1 - PyPy made.")
+                            help="Enable DLX algorithm for solving. 0 - self made; 1 - PyPy made; 2 - PyPy with optimisations.")
     argsParser.add_argument("-B", "--BKT", required=False,
                             help="Enable BKT algorithm for solving. 0 - no optimisation; "
                                  "1 - pieces rotate the optimal number of times and are pre-calculated when pieces are created.")
@@ -42,6 +43,8 @@ def main():
                             help="By enabling this option colours now matter in solving the puzzle.")
     argsParser.add_argument("-S", "--show", action="store_true", required=False,
                             help="By enabling this option you can visualise how the puzzle looks solved and how the pieces look.")
+    argsParser.add_argument("-3D", "--3D", action="store_true", required=False,
+                            help="By enabling this option you will use a different detection algorithm specialised for real world scenarios.")
 
     # Parse the arguments.
     args = vars(argsParser.parse_args())
@@ -57,20 +60,43 @@ def main():
 
     # Load image and send to shape recognition.         contours = cv.findContours(threshImage, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
-    # This will then return the list of corners of the detected polygons.
-    image = cv.imread(args["image"])
+
+    originalImage = cv.imread(args["image"])
+
+    copyImage = originalImage
+
     shapeFinder = ShapeFinder(finderLog | allLog)
-    contours = shapeFinder.detectShapes(image)
+    contours = []
+
+    realProc = args["3D"]
+    # Testing preproc:
+    prep = PreProcessor(copyImage)
+    if realProc:
+        prep.applyContrast()
+        prep.pyrMeanShiftFilterContours()
+        prep.pyrMeanShiftFilterContours()
+        prep.applyContrast()
+        # prep.removeShadow()
+
+        copyImage = prep.getImage()
+        contours = shapeFinder.detectShapes3D(copyImage, originalImage)
+
+    else:
+        prep.basic2D()
+
+        copyImage = prep.getImage()
+        contours = shapeFinder.detectShapes2D(copyImage, originalImage)
+
 
     # Rotate the images in the case they are at an angle.
     rotator = Rotator(rotatorLog | allLog)
-    rotatedContours = rotator.rotate(contours, image)
+    rotatedContours = rotator.rotate(contours, originalImage)
 
     # Find the units in which to break the shapes.
     # Grid the smallest rectangle in a grid with units lxl, where l is a divisor of the smallest side.
     # Look for the biggest l s.t. the area lost in the process is less than a given percent.
     processor = Processor(rotatedContours, processorLog | allLog)
-    lMax = processor.findUnit(image)
+    lMax = processor.findUnit(originalImage)
     pieces = processor.getPieces()
 
     if show:
@@ -99,7 +125,7 @@ def main():
     dlx = -1
     if args["DLX"] is not None:
         dlx = int(args["DLX"])
-    puzzleSolver = Solver(solverLog | allLog, image, bkt, dlx, colour)
+    puzzleSolver = Solver(solverLog | allLog, originalImage, bkt, dlx, colour)
 
     if puzzleSolver.solveBackTracking(pieces):
         if show:
