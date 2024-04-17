@@ -1,4 +1,3 @@
-import cv2 as cv
 import imutils
 import cv2 as cv
 import numpy as np
@@ -27,7 +26,7 @@ class ShapeFinder:
             print("Entering ShapeFinder class, function detectShapes...")
 
         cv.imwrite("imgContrastLab.png", image)
-        edgeImage = cv.Canny(image, 10, 100)
+        edgeImage = cv.Canny(image, 10, 150)
         cv.imwrite("canny.png", edgeImage)
 
         contoursCV = cv.findContours(edgeImage, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
@@ -39,13 +38,13 @@ class ShapeFinder:
         cv.drawContours(contour_image, contours, -1, (0, 255, 0), 2)
         cv.imwrite('contoursagain.png', contour_image)
         filteredContours = []
-        H, W = edgeImage.shape[:2]
+        H, W = image.shape[:2]
         AREA = H * W
         for contour in contours:
             area = cv.contourArea(contour)
 
             # Area filtering:
-            MINAREA = 2
+            MINAREA = AREA / 1000
             MAXAREA = AREA / 2
 
             if not MINAREA < area < MAXAREA:

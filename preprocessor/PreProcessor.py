@@ -10,11 +10,13 @@ class PreProcessor:
     def getImage(self):
         return self._image
 
-    def applyContrast(self):
-        alpha = 1.25
-        beta = -25.0
+    def applyContrast(self, alpha, beta):
         self._image = cv2.convertScaleAbs(self._image, alpha=alpha, beta=beta)
         cv2.imwrite("imgContrast.png", self._image)
+
+    def applyBlur(self, blur):
+        self._image = cv2.GaussianBlur(self._image, (blur, blur), 0)
+        cv2.imwrite("blur.png", self._image)
 
     def removeShadow(self):
         # Convert the image to the LAB color space

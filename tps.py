@@ -72,10 +72,11 @@ def main():
     # Testing preproc:
     prep = PreProcessor(copyImage)
     if realProc:
-        prep.applyContrast()
+        prep.applyContrast(1.5, -50)
+        prep.applyBlur(5)
         prep.pyrMeanShiftFilterContours()
         prep.pyrMeanShiftFilterContours()
-        prep.applyContrast()
+        # prep.applyContrast(1.25, 0)
         # prep.removeShadow()
 
         copyImage = prep.getImage()
