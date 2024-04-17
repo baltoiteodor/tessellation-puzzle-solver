@@ -33,7 +33,7 @@ cv.imwrite("contrast.jpg", contrastImage)
 
 # Convert resized image to GS, Blur it and apply threshold.
 grayImage = cv.cvtColor(contrastImage, cv.COLOR_BGR2GRAY)
-cv.imwrite("gray.jpg", grayImage)
+cv.imwrite("gray.png", grayImage)
 
 
 # blurredImage = cv.GaussianBlur(grayImage, (5, 5), 0)

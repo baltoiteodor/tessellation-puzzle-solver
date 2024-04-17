@@ -20,6 +20,7 @@ class ExactCoverConverter:
         self._version = version
         self._colouring = colour
         self._colourMap = colourMap
+        self._debugChecks = 0
 
     # def constructMatrix(self):
     #     if self._version == 0:
@@ -49,6 +50,41 @@ class ExactCoverConverter:
             for i in range(piecesNum):
                 self._pypyColumns.append("P" + str(i + 1))
 
+        if self._version == 1:
+            self.PyPyMatrixNotOptimised(boardSize, width)
+        elif self._version == 2:
+            self.PyPyMatrixOptimised(boardSize, width)
+
+    def PyPyMatrixOptimised(self, boardSize, width):
+        for r in range(self._boardPiece.rows()):
+            for c in range(self._boardPiece.columns()):
+                # For each position in the board, check what piece might fit.
+                for piece in self._pieces:
+
+                    # Check rotations.
+                    numRotations = piece.getRotations()
+                    for _ in range(numRotations):
+                        pypyRow = []
+                        if self._checkOptimised(r, c, piece, pypyRow):
+                            pypyRow.append(boardSize - 1 + piece.orderNum())
+                            self._pypyRows.append(pypyRow)
+                        # Rotate piece.
+                        piece.rotatePiece()
+
+    def _checkOptimised(self, row, col, piece, pypyRow):
+        if row + piece.rows() - 1 >= self._boardPiece.rows() or (col + piece.columns() - 1 >= self._boardPiece.columns()):
+            return False
+        for r in range(row, row + piece.rows()):
+            for c in range(col, col + piece.columns()):
+                self._debugChecks += 1
+                if self._colouring and (piece.pixelAt(r - row, c - col) != 0 and
+                                        not similarColours(piece.getColour(), self._colourMap[r][c])):
+                    return False
+                if piece.pixelAt(r - row, c - col):
+                    pypyRow.append(r * self._boardPiece.columns() + c)
+
+        return True
+    def PyPyMatrixNotOptimised(self, boardSize, width):
         for piece in self._pieces:
             numRotations = piece.getRotations()
             for _ in range(numRotations):
@@ -57,7 +93,7 @@ class ExactCoverConverter:
                     for col in range(self._boardPiece.columns() - piece.columns() + 1):
                         matrixRow = np.zeros(width, dtype=bool)
                         pypyRow = []
-                        if self.checkPlace(self._boardPiece.columns(), row, col, piece, matrixRow, pypyRow):
+                        if self._checkPlace(self._boardPiece.columns(), row, col, piece, matrixRow, pypyRow):
                             # Add a 1 in the matrixRow at the piece orderNum location.
                             matrixRow[boardSize - 1 + piece.orderNum()] = 1
                             if self._version:
@@ -70,9 +106,10 @@ class ExactCoverConverter:
                 # Rotate piece.
                 piece.rotatePiece()
 
-    def checkPlace(self, boardColumns: int, row: int, col: int, piece, matrixRow, pypyRow):
+    def _checkPlace(self, boardColumns: int, row: int, col: int, piece, matrixRow, pypyRow):
         for r in range(row, row + piece.rows()):
             for c in range(col, col + piece.columns()):
+                self._debugChecks += 1
                 if self._colouring and (piece.pixelAt(r - row, c - col) != 0 and
                                         not similarColours(piece.getColour(), self._colourMap[r][c])):
                     return False
@@ -85,8 +122,9 @@ class ExactCoverConverter:
 
     def printMatrix(self):
         if self._version:
+            print(f"Debug checks: {self._debugChecks}.")
             print("Columns: ", self._pypyColumns)
-            print("These rows be for pypy bro: ", self._pypyRows)
+            print(f"These rows be for pypy bro: {len(self._pypyRows)}", self._pypyRows)
             return
 
         print("Matrix before constructing dancing links.")
