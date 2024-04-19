@@ -33,8 +33,8 @@ class ShapeFinder:
         contours = imutils.grab_contours(contoursCV)
 
         # what is going on?
-        contour_image = np.zeros_like(image)
-        contourFiltered = np.zeros_like(image)
+        contour_image = np.zeros_like(originalImage)
+        contourFiltered = np.zeros_like(originalImage)
         cv.drawContours(contour_image, contours, -1, (0, 255, 0), 2)
         cv.imwrite('contoursagain.png', contour_image)
         filteredContours = []
@@ -44,7 +44,7 @@ class ShapeFinder:
             area = cv.contourArea(contour)
 
             # Area filtering:
-            MINAREA = AREA / 1000
+            MINAREA = AREA / 600
             MAXAREA = AREA / 2
 
             if not MINAREA < area < MAXAREA:
@@ -80,7 +80,7 @@ class ShapeFinder:
         # Smoothen contours - shapes at an angle might have noise.
         smoothed_contours = []
         # Higher epsilon means aggressive smoothing, low epsilon keeps more of the details.
-        epsilon = 0.02
+        epsilon = 0.01
 
         contourList = []
         for i, contour in enumerate(contours):
@@ -105,7 +105,7 @@ class ShapeFinder:
             if self._logger:
                 print(f"Smoothed contour {i}: ", smooth_contour)
 
-        contour_image_smt = np.zeros_like(image)
+        contour_image_smt = np.zeros_like(originalImage)
         cv.drawContours(contour_image_smt, smoothed_contours, -1, (0, 255, 0), 2)
         cv.imwrite('contoursagainsmoothed.png', contour_image_smt)
 

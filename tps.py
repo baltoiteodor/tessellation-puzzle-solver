@@ -60,7 +60,6 @@ def main():
 
     # Load image and send to shape recognition.         contours = cv.findContours(threshImage, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
-
     originalImage = cv.imread(args["image"])
 
     copyImage = originalImage
@@ -72,12 +71,46 @@ def main():
     # Testing preproc:
     prep = PreProcessor(copyImage)
     if realProc:
-        prep.applyContrast(1.5, -50)
-        prep.applyBlur(5)
-        prep.pyrMeanShiftFilterContours()
-        prep.pyrMeanShiftFilterContours()
+
+        #   Testing thresh:
+        # prep.applyContrast(1.5, 0)
+        # prep.removeShadow()
+        prep.morphologicalOpen()
+
+        prep.applyBlur(53)
+        prep.applyContrast(2.0, -50)
+
+        # prep.hueChannel()
+        # prep.lab()
+        # prep.bilateralFilter()
+        prep.morphologicalOpen()
+        # prep.morphologicalOpen()
+
+        prep.pyrMeanShiftFilter()
+        # prep.pyrMeanShiftFilter()
+        # prep.bilateralFilter()
+        # prep.guidedFilter()
+        # prep.pyrMeanShiftFilterContours()
+        # prep.pyrMeanShiftFilterContours()
+        # prep.differentGray()
+        prep.gray()
+        # prep.differentGray2()
+        prep.morphologicalOpen()
+        # prep.adaptiveThreshold(23, 7)
+        # prep.division(95)
+        # prep.morphologicalOpen()
+
+        prep.otsu()
+        # prep.applyContrast(1.5, -50)
+        # prep.applyBlur(5)
+        # prep.pyrMeanShiftFilterContours()
+        # prep.applyContrast(1.25, -25)
+        # prep.pyrMeanShiftFilterContours()
+        # prep.applyContrast(1.25, -25)
+        # prep.pyrMeanShiftFilterContours()
         # prep.applyContrast(1.25, 0)
         # prep.removeShadow()
+        # prep.getSaturation()
 
         copyImage = prep.getImage()
         contours = shapeFinder.detectShapes3D(copyImage, originalImage)
@@ -87,7 +120,6 @@ def main():
 
         copyImage = prep.getImage()
         contours = shapeFinder.detectShapes2D(copyImage, originalImage)
-
 
     # Rotate the images in the case they are at an angle.
     rotator = Rotator(rotatorLog | allLog)
