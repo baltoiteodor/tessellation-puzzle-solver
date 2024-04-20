@@ -24,7 +24,6 @@ class Solver:
         if self._logger:
             self._startTime = timer()
             print("Entering Solver class...")
-            print("Attempting to solve the puzzle using basic backtracking algorithm.")
 
         boardPiece = findBoard(pieces)
         board = boardPiece.getGrid()

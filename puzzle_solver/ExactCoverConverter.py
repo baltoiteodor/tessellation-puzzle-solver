@@ -45,7 +45,7 @@ class ExactCoverConverter:
         if self._version:
             for i in range(self._boardPiece.rows()):
                 for j in range(self._boardPiece.columns()):
-                    self._pypyColumns.append("r"+str(i) + "c" + str(j))
+                    self._pypyColumns.append("r" + str(i) + "c" + str(j))
 
             for i in range(piecesNum):
                 self._pypyColumns.append("P" + str(i + 1))
@@ -72,7 +72,8 @@ class ExactCoverConverter:
                         piece.rotatePiece()
 
     def _checkOptimised(self, row, col, piece, pypyRow):
-        if row + piece.rows() - 1 >= self._boardPiece.rows() or (col + piece.columns() - 1 >= self._boardPiece.columns()):
+        if row + piece.rows() - 1 >= self._boardPiece.rows() or (
+                col + piece.columns() - 1 >= self._boardPiece.columns()):
             return False
         for r in range(row, row + piece.rows()):
             for c in range(col, col + piece.columns()):
@@ -84,6 +85,7 @@ class ExactCoverConverter:
                     pypyRow.append(r * self._boardPiece.columns() + c)
 
         return True
+
     def PyPyMatrixNotOptimised(self, boardSize, width):
         for piece in self._pieces:
             numRotations = piece.getRotations()

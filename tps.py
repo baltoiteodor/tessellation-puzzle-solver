@@ -129,7 +129,7 @@ def main():
     # Grid the smallest rectangle in a grid with units lxl, where l is a divisor of the smallest side.
     # Look for the biggest l s.t. the area lost in the process is less than a given percent.
     processor = Processor(rotatedContours, processorLog | allLog)
-    lMax = processor.findUnit(originalImage)
+    lMax = processor.findGrids()
     pieces = processor.getPieces()
 
     if show:

@@ -1,21 +1,18 @@
-import numpy as np
+import math
+
 import cv2 as cv
 from timeit import default_timer as timer
 
-from numpy import shape
-
 from misc.piece import Piece
-from misc.types import *
 from misc.contour import *
 
-MAXREZ = 1024
+MAXSIZE = 1024
 DECREMENT = 0.1
 
 
 # Center is in width, height format
 def colourCenteredAt(image, center):
     x, y = center
-    # print(center, shape(image))
     b, g, r = image[y, x]
     height, width = image.shape[:2]
     dx = [-1, 0, 1, 0]
@@ -34,6 +31,23 @@ def colourCenteredAt(image, center):
     return r // num, g // num, b // num
 
 
+def _trimGrid(grid):
+    # Remove the last columns if all zero.
+    while np.all(grid[:, -1] == 0):
+        grid = grid[:, :-1]
+    # Remove leading columns with all zeros
+    while np.all(grid[:, 0] == 0):
+        grid = grid[:, 1:]
+    # Remove the last row if all zero.
+    while np.all(grid[-1, :] == 0):
+        grid = grid[:-1, :]
+    # Remove leading rows with all zeros
+    while np.all(grid[0, :] == 0):
+        grid = grid[1:, :]
+
+    return grid
+
+
 class Processor:
     def __init__(self, contours, logger: bool):
         self._contours: Contours = contours
@@ -42,7 +56,7 @@ class Processor:
         self._pieces = []
         self._startTime = self._endTime = 0
 
-    def findUnit(self, image):
+    def findGrids(self):
         # Declare a dictionary from contours to their minimum rectangle for future use
         # Find the smallest edge first, this will be a potential candidate for the unit length.
 
@@ -52,28 +66,15 @@ class Processor:
             print("Trying to find a good unit length for the grids of the pieces...")
             print("Looking for the smallest edge in the contours for a starting value.")
 
-        smallestEdge = MAXREZ
-        for c in self._contours:
-            self.totalArea += c.getArea()
-            vertices = c.getContour().squeeze()
-            # Calculate distances between consecutive vertices
-            distances = [np.linalg.norm(vertices[i] - vertices[(i + 1) % len(vertices)]) for i in range(len(vertices))]
-            # Find the minimum distance
-            smallestEdgeContour = min(distances)
-            smallestEdge = min(smallestEdgeContour, smallestEdge)
+        smallestEdge = self._findMinUnitLen()
 
         if self._logger:
             print("Smallest edge - ", smallestEdge)
+            # print(self._contours)
 
         # Find a length such that the error is less than 5% for now. 
         unitLen = smallestEdge + 1.0
         error = 1.0
-
-        # Testing purposes
-        # TODO: remove this sometime.
-        # output_image = np.zeros((1000, 1000, 3), dtype=np.uint8)
-        # color_contour = (0, 255, 0)  # Green color for contours
-        # color_rect = (0, 0, 255)  # Red color for rectangles
 
         while error > 0.05 and unitLen > 0:
             # Make grid for each contour
@@ -82,15 +83,9 @@ class Processor:
             for c in self._contours:
                 coveredArea = 0.0
                 pieceArea = c.getArea()
-                rect = c.getMinAreaRect()
 
-                # cv.drawContours(output_image, [c.getContour()], -1, color_contour, 2)
-                box = cv.boxPoints(rect)
+                box = cv2.boxPoints(c.getMinAreaRect())
                 box = np.int0(box)
-                # cv.drawContours(output_image, [box], 0, color_rect, 2)
-
-                # I cannot figure out why the dimensions keep on switching randomly. TopLeft will be min x min y.
-
                 # x is width, y is height.
                 topLeftX = np.min(box[:, 0])
                 topLeftY = np.min(box[:, 1])
@@ -125,40 +120,19 @@ class Processor:
                         if isIn >= 0:
                             # Mark this unit as 1 in the grid. 
                             grid[indexY][indexX] = 1
-                            # originalCoord = c.getOriginalCoord(centreUnit)
-                            # colours[indexY][indexX] = colourCenteredAt(image, originalCoord)
                             noOnes += 1
                         else:
-                            # Mark as 0.     
                             grid[indexY][indexX] = 0
-                            # colours[indexY][indexX] = (0, 0, 0)
                         # Add to covered area
                         coveredArea += grid[indexY][indexX] * unitLen * unitLen
                         unitY += unitLen
                         indexY += 1
                     unitX += unitLen
                     indexX += 1
-                # They appear as 1.0 for some reason.
+
                 grid = grid.astype(int)
-                # colours = np.array(colours)
-                # Remove the last columns if all zero.
-                while np.all(grid[:, -1] == 0):
-                    grid = grid[:, :-1]
-                    # colours = colours[:, :-1]
-                # Remove leading columns with all zeros
-                while np.all(grid[:, 0] == 0):
-                    grid = grid[:, 1:]
-                    # colours = colours[:, 1:]
-
-                # Remove the last row if all zero.
-                while np.all(grid[-1, :] == 0):
-                    grid = grid[:-1, :]
-                    # colours = colours[:-1, :]
-
-                # Remove leading rows with all zeros
-                while np.all(grid[0, :] == 0):
-                    grid = grid[1:, :]
-                    # colours = colours[1:, :]
+                # Remove borderline zeroes.
+                grid = _trimGrid(grid)
 
                 newPiece: Piece = Piece(c, grid, c.getColour(), unitLen, (topLeftX, topLeftY))
                 newPiece.canBeBoard(noOnes == newPiece.area())
@@ -170,7 +144,6 @@ class Processor:
                     # No point in trying for other pieces.
                     break
 
-            # cv.imwrite('cnt_and_rect.jpg', output_image)
             unitLen -= DECREMENT
         # While loop complete, should have the pieces ready.
         if self._logger:
@@ -180,6 +153,19 @@ class Processor:
             print("---")
             print("----------------------------")
             print("---")
+
+    # Basically calculate a potential maximum unit length for each bounding rectangle and compare to a global maximum.
+    def _findMinUnitLen(self):
+        smallestEdge = MAXSIZE
+        for c in self._contours:
+            self.totalArea += c.getArea()
+            # Get the bounding rectangle, calculate its area, calculate min potential unitLen.
+            _, _, w, h = c.getBoundingRect()
+            area = w * h
+            potentialUnitLenMax = int(math.sqrt(area))
+            smallestEdge = min(smallestEdge, potentialUnitLenMax)
+
+        return smallestEdge
 
     def getPieces(self):
         return self._pieces
