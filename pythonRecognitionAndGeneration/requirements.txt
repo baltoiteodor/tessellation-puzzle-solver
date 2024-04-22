@@ -1,0 +1,9 @@
+###### Requirements without Version Specifiers ######
+opencv-python
+imutils
+numpy
+matplotlib
+dlx
+colormath
+skimage
+###### Requirements with Version Specifiers ######
