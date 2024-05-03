@@ -5,6 +5,8 @@ from puzzle_solver.DLXCPP import dlxcpplinker
 from puzzle_solver.ExactCoverConverter import ExactCoverConverter
 from puzzle_solver.helper import *
 from timeit import default_timer as timer
+import numpy as np
+import cv2
 
 class Solver:
     def __init__(self, logger: bool, image, bkt: int, dlx: int, colour: bool, cpp: bool):
@@ -29,6 +31,15 @@ class Solver:
 
         boardPiece = findBoard(pieces)
         board = boardPiece.getGrid()
+
+        initialBoardPiece = boardPiece
+        ##########
+        # Works for 2x! Somehow.
+        # TODO: add a loop to make this try a bunch of variants and call it a day.
+        verdict, boardPiece = scalePiece(boardPiece, 2.0, self._image)
+
+        ###########
+
         # In BGR format.
         self._extractColourMap(boardPiece)
         if self._logger:
@@ -260,7 +271,7 @@ class Solver:
         self._colourMap = [[(0.0, 0.0, 0.0) for _ in range(board.columns())] for _ in range(board.rows())]
         unit = board.getUnitLen()
         (topLeftX, topLeftY) = board.getTopLeft()
-
+        image = board.getOriginalContour().getImage()
         # Walk again through image and for each 1 in the grid, put the colour of the center or some average.
         # For the 0s put (0,0,0) in colour.
         for i in range(board.rows()):
@@ -272,7 +283,7 @@ class Solver:
                 centreY = topY + (unit / 2)
                 # Get the colour from original image and put it in the map.
                 if board.pixelAt(i, j) != 0:
-                    b, g, r = self._image[int(centreY)][int(centreX)]
+                    b, g, r = image[int(centreY)][int(centreX)]
                     self._colourMap[i][j] = (r, g, b)
 
     def getSolution(self):

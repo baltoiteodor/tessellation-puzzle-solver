@@ -5,6 +5,7 @@ from timeit import default_timer as timer
 
 from misc.piece import Piece
 from misc.contour import *
+from puzzle_solver.helper import trimGrid
 
 MAXSIZE = 1024
 DECREMENT = 0.1
@@ -29,23 +30,6 @@ def colourCenteredAt(image, center):
             num += 1
 
     return r // num, g // num, b // num
-
-
-def _trimGrid(grid):
-    # Remove the last columns if all zero.
-    while np.all(grid[:, -1] == 0):
-        grid = grid[:, :-1]
-    # Remove leading columns with all zeros
-    while np.all(grid[:, 0] == 0):
-        grid = grid[:, 1:]
-    # Remove the last row if all zero.
-    while np.all(grid[-1, :] == 0):
-        grid = grid[:-1, :]
-    # Remove leading rows with all zeros
-    while np.all(grid[0, :] == 0):
-        grid = grid[1:, :]
-
-    return grid
 
 
 class Processor:
@@ -132,7 +116,7 @@ class Processor:
 
                 grid = grid.astype(int)
                 # Remove borderline zeroes.
-                grid = _trimGrid(grid)
+                grid = trimGrid(grid)
 
                 newPiece: Piece = Piece(c, grid, c.getColour(), unitLen, (topLeftX, topLeftY))
                 newPiece.canBeBoard(noOnes == newPiece.area())

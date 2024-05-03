@@ -16,6 +16,124 @@ setattr(np, "asscalar", patch_asscalar)
 COLOURTHRESHOLD = 25
 
 
+def scalePiece(piece: Piece, scaleFactor, image):
+    originalContour = piece.getOriginalContour().getContour()
+    print("LL", piece.getOriginalContour().getArea())
+
+    originalContournp = np.array(originalContour, dtype=np.int32)
+
+    x, y, w, h = cv2.boundingRect(originalContournp)
+
+    # Resize the bounding box dimensions
+    scaledW = int(w * scaleFactor)
+    scaledH = int(h * scaleFactor)
+
+    # Scale and translate the contour
+    scaledContour = ((originalContournp - (x, y)) * scaleFactor).astype(np.int32)
+
+    # Create a mask for the contour
+    mask = np.zeros_like(image[:,:,0])
+    cv2.drawContours(mask, [scaledContour], -1, (255), thickness=cv2.FILLED)
+
+    # Extract the region of interest (ROI) from the original image using the bounding box
+    roi = image[y:y+h, x:x+w]
+
+    # Resize the ROI using the scaled dimensions
+    scaledRoi = cv2.resize(roi, (scaledW, scaledH), interpolation=cv2.INTER_LINEAR)
+
+    # Create a mask for the scaled contour
+    scaledMask = np.zeros_like(scaledRoi[:,:,0])
+    cv2.drawContours(scaledMask, [scaledContour], -1, (255), thickness=cv2.FILLED)
+
+    # Apply the scaled mask to the scaled ROI
+    scaledRoiWithMask = cv2.bitwise_and(scaledRoi, scaledRoi, mask=scaledMask)
+
+    # Save the scaled ROI with mask as an image
+    cv2.imwrite('scaled.png', scaledRoiWithMask)
+
+    # Transform into Contour with new image.
+    newContour = Contour(scaledContour, scaledRoiWithMask, piece.orderNum())
+    unitLen = piece.getUnitLen()
+
+    # Create new grid. If the error is too great return failure to scale the board.
+    coveredArea = 0.0
+    pieceArea = newContour.getArea()
+
+    box = cv2.boxPoints(newContour.getMinAreaRect())
+    box = np.int0(box)
+    # x is width, y is height.
+    topLeftX = np.min(box[:, 0])
+    topLeftY = np.min(box[:, 1])
+    botRightX = np.max(box[:, 0])
+    botRightY = np.max(box[:, 1])
+
+    # For each unit of the grid, check if the centre is inside the polygon, if yes, then put 1 inside the
+    # grid, otherwise 0.
+    # Start with row 0, stop when we are outside the rectangle. Same for columns.
+    unitX = topLeftX
+    indexX = 0
+    # print("Is same width?: ", width, botRightX-topLeftX)
+    # Due to width/height switching I will calculate my own.
+    width = botRightX - topLeftX
+    height = botRightY - topLeftY
+    rows = int(width / unitLen + 1)
+    cols = int(height / unitLen + 1)
+    # Invert the x, y to y, x in the grid, so it looks like in the image.
+    grid = np.zeros((cols, rows))
+    # colours = [[(0.0, 0.0, 0.0) for _ in range(rows)] for _ in range(cols)]
+    # Use this to determine if the piece is rotatable.
+    noOnes: int = 0
+    while unitX < botRightX:  # When the new unit x coordinate is out of bounds.
+        indexY = 0
+        unitY = topLeftY
+        # Loop columns.
+        while unitY < botRightY:
+            # Find centre of grid unit, check if inside the contour.
+            centreUnit = (int(unitX + unitLen / 2), int(unitY + unitLen / 2))
+            isIn = cv2.pointPolygonTest(newContour.getContour(), centreUnit, False)
+
+            if isIn >= 0:
+                # Mark this unit as 1 in the grid.
+                grid[indexY][indexX] = 1
+                noOnes += 1
+            else:
+                grid[indexY][indexX] = 0
+            # Add to covered area
+            coveredArea += grid[indexY][indexX] * unitLen * unitLen
+            unitY += unitLen
+            indexY += 1
+        unitX += unitLen
+        indexX += 1
+
+    grid = grid.astype(int)
+    # Remove borderline zeroes.
+    grid = trimGrid(grid)
+
+    newPiece: Piece = Piece(newContour, grid, newContour.getColour(), unitLen, (topLeftX, topLeftY))
+    # Error is the maximum error per piece.
+    error = abs(1 - coveredArea / pieceArea)
+
+
+    if error > 0.05:
+        # No point in trying for other pieces.
+        return False, None
+    return True, newPiece
+
+def trimGrid(grid):
+    # Remove the last columns if all zero.
+    while np.all(grid[:, -1] == 0):
+        grid = grid[:, :-1]
+    # Remove leading columns with all zeros
+    while np.all(grid[:, 0] == 0):
+        grid = grid[:, 1:]
+    # Remove the last row if all zero.
+    while np.all(grid[-1, :] == 0):
+        grid = grid[:-1, :]
+    # Remove leading rows with all zeros
+    while np.all(grid[0, :] == 0):
+        grid = grid[1:, :]
+
+    return grid
 def findBoard(pieces: Pieces):
     board = None
     maxSize = 0
