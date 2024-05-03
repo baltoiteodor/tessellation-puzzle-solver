@@ -126,6 +126,7 @@ class Solver:
                 rotatePieceNonOptimal(piece)
         return False
 
+    # Pre-calculates all rotations.
     def _backtrackRotationOptimisation(self, currentBoard: Board, board: Board, outputMatrix: Board,
                                        pieces: Pieces, currRow: int, currCol: int):
         # Get the first 0 in the grid as updated position.
@@ -180,6 +181,7 @@ class Solver:
         if self._logger:
             converter.printMatrix()
         outcome = False
+        # Version 0 is for homemade python DLX (WIP).
         if (not self._cpp) and version:
             labels, rows = converter.getPyPy()
             outcome = self._solveDLXPyPy(labels, rows, boardPiece, outputMatrix)
@@ -226,11 +228,12 @@ class Solver:
     def _solveDLXCPP(self, labels, rows, boardPiece, outputMatrix, width):
         # labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
         # rows = [[0, 3, 6], [0, 3], [3, 4, 6], [2, 4, 5], [1, 2, 5, 6], [1, 6]]
+        timeIn = timer()
         selected = dlxcpplinker.solveDLXCPP(rows, width)
         # print(rows)
         # Construct outputMatrix.
         boardSize = boardPiece.rows() * boardPiece.columns()
-        if selected is None:
+        if selected is None or len(selected) == 0:
             return False
         for row in selected:
             # For each selected row, place it in the output matrix.
@@ -239,6 +242,10 @@ class Solver:
                 r = int(element / boardPiece.columns())
                 c = element % boardPiece.columns()
                 outputMatrix[r][c] = chosenPiece
+
+        timeOut = timer()
+        # TODO: FIX the overhead when enabling colour.
+        print("CPP DLX solver took: ", timeOut - timeIn)
         if self._logger:
             prettyPrintGrid(outputMatrix)
 

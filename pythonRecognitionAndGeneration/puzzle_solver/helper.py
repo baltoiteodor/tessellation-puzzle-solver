@@ -112,7 +112,4 @@ def similarColours(colour1, colour2):
     lab2 = convert_color(sRGBColor(colour2[0], colour2[1], colour2[2]), LabColor)
 
     distance = delta_e_cie2000(lab1, lab2)
-    # print("Colours + distance: ", colour1, colour2, distance)
     return distance < COLOURTHRESHOLD
-    # difference = np.sqrt(np.sum((np.array(colour1) - np.array(colour2))**2))
-    # return difference < COLOURTHRESHOLD

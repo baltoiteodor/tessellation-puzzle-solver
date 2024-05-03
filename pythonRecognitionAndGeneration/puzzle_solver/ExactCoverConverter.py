@@ -18,6 +18,7 @@ class ExactCoverConverter:
         self._cols = 0
         # If version is 0, use home-made DLX, otherwise use the pypy one.
         self._version = version
+        # If this is enabled, we check for colour information to match as well.
         self._colouring = colour
         self._colourMap = colourMap
         self._debugChecks = 0
@@ -128,12 +129,12 @@ class ExactCoverConverter:
         if self._version:
             print(f"Debug checks: {self._debugChecks}.")
             print("Columns: ", self._pypyColumns)
-            print(f"These rows be for pypy bro: {len(self._pypyRows)}", self._pypyRows)
+            # print(f"These rows be for pypy bro: {len(self._pypyRows)}", self._pypyRows)
             return
 
-        print("Matrix before constructing dancing links.")
-        for row in range(self._rows):
-            print([int(elem) for elem in self._matrix[row]])
+        # print("Matrix before constructing dancing links.")
+        # for row in range(self._rows):
+        #     print([int(elem) for elem in self._matrix[row]])
 
     def getPyPy(self):
         return self._pypyColumns, self._pypyRows

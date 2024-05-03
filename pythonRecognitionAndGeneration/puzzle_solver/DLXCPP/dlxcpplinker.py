@@ -5,5 +5,9 @@ from build.DLXCPP import *
 
 def solveDLXCPP(rows, width):
     solver = DLXCPPSolver(rows, width)
-    print("HEHEHEEEEEEEE: ", solver.getRows())
-    print(solver.getWidth())
+    # print("Rows: ", solver.getRows())
+    # print(solver.getWidth())
+    result = solver.solve()
+    print("Result: ", result)
+
+    return result
