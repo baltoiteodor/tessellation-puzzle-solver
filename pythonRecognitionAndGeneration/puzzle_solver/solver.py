@@ -36,9 +36,30 @@ class Solver:
         ##########
         # Works for 2x! Somehow.
         # TODO: add a loop to make this try a bunch of variants and call it a day.
-        verdict, boardPiece = scalePiece(boardPiece, 2.0, self._image)
+        # verdict, boardPiece = scalePiece(boardPiece, 2.0, self._image)
 
         ###########
+
+
+        # Add an order number such that we can differentiate pieces in the output matrix.
+        # piecesIndex = [(x, index + 1) for index, x in enumerate(pieces)]
+        for index, piece in enumerate(pieces):
+            piece.setOrderNumber(index + 1)
+
+        # Calculate real area of pieces to determine scale factor of board.
+
+        piecesArea = calculatePiecesArea(pieces)
+        boardArea = initialBoardPiece.getOriginalContour().getArea()
+        scaler = np.sqrt(piecesArea / boardArea)
+        # print(scaler)
+        scaler = roundScaler(scaler)
+        if self._logger:
+            print("Scaler: ", scaler)
+
+        verdict, boardPiece = scalePiece(boardPiece, scaler, self._image)
+
+        if verdict == False:
+            return False
 
         # In BGR format.
         self._extractColourMap(boardPiece)
@@ -50,10 +71,6 @@ class Solver:
             # plt.axis('off')  # Turn off axis labels
             # plt.show()
 
-        # Add an order number such that we can differentiate pieces in the output matrix.
-        # piecesIndex = [(x, index + 1) for index, x in enumerate(pieces)]
-        for index, piece in enumerate(pieces):
-            piece.setOrderNumber(index + 1)
         # Remember colours of pieces.
         piecesColour = [pc.getColour() for pc in pieces]
         # We will start the bkt from empty board.

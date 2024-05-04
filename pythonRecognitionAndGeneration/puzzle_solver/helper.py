@@ -18,7 +18,7 @@ COLOURTHRESHOLD = 25
 
 def scalePiece(piece: Piece, scaleFactor, image):
     originalContour = piece.getOriginalContour().getContour()
-    print("LL", piece.getOriginalContour().getArea())
+    # print("LL", piece.getOriginalContour().getArea())
 
     originalContournp = np.array(originalContour, dtype=np.int32)
 
@@ -119,6 +119,15 @@ def scalePiece(piece: Piece, scaleFactor, image):
         return False, None
     return True, newPiece
 
+# Rounds to closest 0.05.
+def roundScaler(scaler):
+    return round(scaler * 20) / 20
+def calculatePiecesArea(pieces: Pieces):
+    area = 0.0
+    for pc in pieces:
+        area += pc.getOriginalContour().getArea()
+
+    return area
 def trimGrid(grid):
     # Remove the last columns if all zero.
     while np.all(grid[:, -1] == 0):

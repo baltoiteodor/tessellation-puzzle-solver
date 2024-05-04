@@ -59,23 +59,36 @@ class Processor:
         # Find a length such that the error is less than 5% for now. 
         unitLen = smallestEdge + 1.0
         error = 1.0
-
+        # print("Debug contours right now: ", self._contours)
         while error > 0.05 and unitLen > 0:
             # Make grid for each contour
             self._pieces = []
             error = 0.0
             for c in self._contours:
+                # print("Current contour: ", c)
                 coveredArea = 0.0
                 pieceArea = c.getArea()
+                # TODO: change this into bounding rectangle instead of min area rectangle.
 
-                box = cv2.boxPoints(c.getMinAreaRect())
+                x, y, w, h = c.getBoundingRect()
+
+                # Create a rotated rectangle manually from the bounding rectangle
+                center = (x + w/2, y + h/2)
+                size = (w, h)
+                angle = 0  # Since it's a straight rectangle, the angle is 0
+                rect = (center, size, angle)
+
+                box = cv2.boxPoints(rect)
                 box = np.int0(box)
+                # print(box)
+
                 # x is width, y is height.
                 topLeftX = np.min(box[:, 0])
                 topLeftY = np.min(box[:, 1])
                 botRightX = np.max(box[:, 0])
                 botRightY = np.max(box[:, 1])
-
+                # print(topLeftX, topLeftY)
+                # print(botRightX, botRightY)
                 # For each unit of the grid, check if the centre is inside the polygon, if yes, then put 1 inside the
                 # grid, otherwise 0.
                 # Start with row 0, stop when we are outside the rectangle. Same for columns. 
@@ -92,6 +105,7 @@ class Processor:
                 # colours = [[(0.0, 0.0, 0.0) for _ in range(rows)] for _ in range(cols)]
                 # Use this to determine if the piece is rotatable.
                 noOnes: int = 0
+                # print("Current unit: ", unitLen)
                 while unitX < botRightX:  # When the new unit x coordinate is out of bounds.
                     indexY = 0
                     unitY = topLeftY
@@ -100,7 +114,7 @@ class Processor:
                         # Find centre of grid unit, check if inside the contour.
                         centreUnit = (int(unitX + unitLen / 2), int(unitY + unitLen / 2))
                         isIn = cv.pointPolygonTest(c.getContour(), centreUnit, False)
-
+                        # print("points: ", centreUnit, isIn)
                         if isIn >= 0:
                             # Mark this unit as 1 in the grid. 
                             grid[indexY][indexX] = 1
