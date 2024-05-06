@@ -68,7 +68,6 @@ class Processor:
                 # print("Current contour: ", c)
                 coveredArea = 0.0
                 pieceArea = c.getArea()
-                # TODO: change this into bounding rectangle instead of min area rectangle.
 
                 x, y, w, h = c.getBoundingRect()
 

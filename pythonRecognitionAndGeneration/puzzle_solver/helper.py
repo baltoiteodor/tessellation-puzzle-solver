@@ -215,7 +215,7 @@ def isValid(currBoard: Board, targetBoard: Board, colourMap, piece: Piece, row: 
     for i in range(row, row + piece.rows()):
         for j in range(col, col + piece.columns()):
             if piece.pixelAt(i - row, j - col) != 0 and \
-                    (colourMatters and not similarColours(piece.getColour(), colourMap[i][j])):
+                    (colourMatters and not similarColours(piece.getColour(), colourMap[i][j], {})):
                 return False, row, col
             if currBoard[i][j] + piece.pixelAt(i - row, j - col) > targetBoard[i][j]:
                 return False, row, col
@@ -234,9 +234,18 @@ def emptyBoard(rows: int, cols: int):
     return [[0 for _ in range(cols)] for _ in range(rows)]
 
 
-def similarColours(colour1, colour2):
+def similarColours(colour1, colour2, dict):
+
+    pair = (colour1, colour2)
+    pairRev = (colour2, colour1)
+    if pair in dict:
+        return dict[pair]
+
     lab1 = convert_color(sRGBColor(colour1[0], colour1[1], colour1[2]), LabColor)
     lab2 = convert_color(sRGBColor(colour2[0], colour2[1], colour2[2]), LabColor)
 
     distance = delta_e_cie2000(lab1, lab2)
-    return distance < COLOURTHRESHOLD
+    ans = distance < COLOURTHRESHOLD
+    dict[pair] = ans
+    dict[pairRev] = ans
+    return ans
