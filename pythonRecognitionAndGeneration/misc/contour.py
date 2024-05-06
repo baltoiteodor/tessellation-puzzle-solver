@@ -142,6 +142,9 @@ class Contour:
     def getOriginalContour(self):
         return self._originalContour
 
+    def getImage(self):
+        return self._image
+
     def __repr__(self):
         return f"Contour {self._ordNum} with colour " \
                f"{self._colour} looks like this: \n {self._contour}"

@@ -5,6 +5,8 @@ from puzzle_solver.DLXCPP import dlxcpplinker
 from puzzle_solver.ExactCoverConverter import ExactCoverConverter
 from puzzle_solver.helper import *
 from timeit import default_timer as timer
+import numpy as np
+import cv2
 
 class Solver:
     def __init__(self, logger: bool, image, bkt: int, dlx: int, colour: bool, cpp: bool):
@@ -29,6 +31,36 @@ class Solver:
 
         boardPiece = findBoard(pieces)
         board = boardPiece.getGrid()
+
+        initialBoardPiece = boardPiece
+        ##########
+        # Works for 2x! Somehow.
+        # TODO: add a loop to make this try a bunch of variants and call it a day.
+        # verdict, boardPiece = scalePiece(boardPiece, 2.0, self._image)
+
+        ###########
+
+
+        # Add an order number such that we can differentiate pieces in the output matrix.
+        # piecesIndex = [(x, index + 1) for index, x in enumerate(pieces)]
+        for index, piece in enumerate(pieces):
+            piece.setOrderNumber(index + 1)
+
+        # Calculate real area of pieces to determine scale factor of board.
+
+        piecesArea = calculatePiecesArea(pieces)
+        boardArea = initialBoardPiece.getOriginalContour().getArea()
+        scaler = np.sqrt(piecesArea / boardArea)
+        # print(scaler)
+        scaler = roundScaler(scaler)
+        if self._logger:
+            print("Scaler: ", scaler)
+
+        verdict, boardPiece = scalePiece(boardPiece, scaler, self._image)
+
+        if verdict == False:
+            return False
+
         # In BGR format.
         self._extractColourMap(boardPiece)
         if self._logger:
@@ -39,10 +71,6 @@ class Solver:
             # plt.axis('off')  # Turn off axis labels
             # plt.show()
 
-        # Add an order number such that we can differentiate pieces in the output matrix.
-        # piecesIndex = [(x, index + 1) for index, x in enumerate(pieces)]
-        for index, piece in enumerate(pieces):
-            piece.setOrderNumber(index + 1)
         # Remember colours of pieces.
         piecesColour = [pc.getColour() for pc in pieces]
         # We will start the bkt from empty board.
@@ -260,7 +288,7 @@ class Solver:
         self._colourMap = [[(0.0, 0.0, 0.0) for _ in range(board.columns())] for _ in range(board.rows())]
         unit = board.getUnitLen()
         (topLeftX, topLeftY) = board.getTopLeft()
-
+        image = board.getOriginalContour().getImage()
         # Walk again through image and for each 1 in the grid, put the colour of the center or some average.
         # For the 0s put (0,0,0) in colour.
         for i in range(board.rows()):
@@ -272,7 +300,7 @@ class Solver:
                 centreY = topY + (unit / 2)
                 # Get the colour from original image and put it in the map.
                 if board.pixelAt(i, j) != 0:
-                    b, g, r = self._image[int(centreY)][int(centreX)]
+                    b, g, r = image[int(centreY)][int(centreX)]
                     self._colourMap[i][j] = (r, g, b)
 
     def getSolution(self):

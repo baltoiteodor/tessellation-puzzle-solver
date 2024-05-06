@@ -4,6 +4,7 @@ import numpy as np
 
 from misc.piece import Piece
 from puzzle_solver.helper import similarColours
+from timeit import default_timer as timer
 
 
 class ExactCoverConverter:
@@ -22,7 +23,8 @@ class ExactCoverConverter:
         self._colouring = colour
         self._colourMap = colourMap
         self._debugChecks = 0
-
+        self._time = 0
+        self._colourPairsDictionary = {}
     # def constructMatrix(self):
     #     if self._version == 0:
     #         self._constructMatrixHome()
@@ -81,8 +83,12 @@ class ExactCoverConverter:
         for r in range(row, row + piece.rows()):
             for c in range(col, col + piece.columns()):
                 self._debugChecks += 1
+                timeIn = timer()
+                #TODO: pre-calculate if colours are similar in the similar colours. If the pair is recognised skip the computation and give the recorded output.
                 if self._colouring and (piece.pixelAt(r - row, c - col) != 0 and
-                                        not similarColours(piece.getColour(), self._colourMap[r][c])):
+                                        not similarColours(piece.getColour(), self._colourMap[r][c], self._colourPairsDictionary)):
+                    timeOut = timer()
+                    self._time += timeOut - timeIn
                     return False
                 if piece.pixelAt(r - row, c - col):
                     pypyRow.append(r * self._boardPiece.columns() + c)
@@ -116,7 +122,7 @@ class ExactCoverConverter:
             for c in range(col, col + piece.columns()):
                 self._debugChecks += 1
                 if self._colouring and (piece.pixelAt(r - row, c - col) != 0 and
-                                        not similarColours(piece.getColour(), self._colourMap[r][c])):
+                                        not similarColours(piece.getColour(), self._colourMap[r][c], self._colourPairsDictionary)):
                     return False
                 if piece.pixelAt(r - row, c - col):
                     # Means colour must be similar.
@@ -129,6 +135,7 @@ class ExactCoverConverter:
         if self._version:
             print(f"Debug checks: {self._debugChecks}.")
             print("Columns: ", self._pypyColumns)
+            print("Time spent colour checking: ", self._time)
             # print(f"These rows be for pypy bro: {len(self._pypyRows)}", self._pypyRows)
             return
 
