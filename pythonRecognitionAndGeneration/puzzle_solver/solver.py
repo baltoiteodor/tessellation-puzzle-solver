@@ -9,7 +9,7 @@ import numpy as np
 import cv2
 
 class Solver:
-    def __init__(self, logger: bool, image, bkt: int, dlx: int, colour: bool, cpp: bool):
+    def __init__(self, logger: bool, image, bkt: int, dlx: int, colour: bool, cpp: bool, jigsaw: bool):
         self._logger = logger
         self._startTime = self._endTime = 0
         self._solution = None
@@ -21,6 +21,7 @@ class Solver:
         self._sol = []
         self._size = 0
         self._cpp = cpp
+        self._jigsaw = jigsaw
 
     # The solve method will take as input an array of 2d arrays representing puzzle pieces and try to solve the puzzle.
     def solveBackTracking(self, pieces: Pieces):
@@ -35,7 +36,6 @@ class Solver:
         initialBoardPiece = boardPiece
         ##########
         # Works for 2x! Somehow.
-        # TODO: add a loop to make this try a bunch of variants and call it a day.
         # verdict, boardPiece = scalePiece(boardPiece, 2.0, self._image)
 
         ###########
@@ -56,11 +56,14 @@ class Solver:
         if self._logger:
             print("Scaler: ", scaler)
 
-        verdict, boardPiece = scalePiece(boardPiece, scaler, self._image)
+        verdict = True
+        if scaler != 1.0:
+            verdict, boardPiece = scalePiece(boardPiece, scaler, self._image)
 
         if verdict == False:
             return False
 
+        print("Board Piece: ", boardPiece)
         # In BGR format.
         self._extractColourMap(boardPiece)
         if self._logger:

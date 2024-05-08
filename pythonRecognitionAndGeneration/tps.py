@@ -48,6 +48,9 @@ def main():
     argsParser.add_argument("-cpp", "--cpp", action="store_true", required=False,
                             help="By enabling this option the solver will use the C++ implementation of the DLX algorithm.")
 
+    argsParser.add_argument("-jigsaw", "--jigsaw", action="store_true", required=False,
+                            help="Specify that the input puzzle is a basic jigsaw puzzle. Expect a possibly faulty solution to the problem :).")
+
     # Parse the arguments.
     args = vars(argsParser.parse_args())
 
@@ -70,6 +73,7 @@ def main():
     contours = []
 
     realProc = args["3D"]
+    jigsaw = args["jigsaw"]
     # Testing preproc:
     prep = PreProcessor(copyImage)
     if realProc:
@@ -118,20 +122,31 @@ def main():
         contours = shapeFinder.detectShapes3D(copyImage, originalImage)
 
     else:
-        prep.basic2D()
+        if jigsaw:
+            # GIVE ME JIGSAW CONTOURS.
+            prep.jigsaw2D()
+            copyImage = prep.getImage()
+            contours = shapeFinder.detectJigsaw(copyImage, originalImage)
+        else:
+            prep.basic2D()
 
-        copyImage = prep.getImage()
-        contours = shapeFinder.detectShapes2D(copyImage, originalImage)
+            copyImage = prep.getImage()
+            contours = shapeFinder.detectShapes2D(copyImage, originalImage)
 
     # Rotate the images in the case they are at an angle.
-    rotator = Rotator(rotatorLog | allLog)
-    rotatedContours = rotator.rotate(contours, originalImage)
+    rotatedContours = contours
+    if not jigsaw:
+        rotator = Rotator(rotatorLog | allLog)
+        rotatedContours = rotator.rotate(contours, originalImage)
 
     # Find the units in which to break the shapes.
     # Grid the smallest rectangle in a grid with units lxl, where l is a divisor of the smallest side.
     # Look for the biggest l s.t. the area lost in the process is less than a given percent.
     processor = Processor(rotatedContours, processorLog | allLog)
-    lMax = processor.findGrids()
+    if jigsaw:
+        processor.findGridsJigsaw()
+    else:
+        processor.findGrids()
     pieces = processor.getPieces()
 
     if show:
@@ -148,7 +163,8 @@ def main():
     dlx = -1
     if args["DLX"] is not None:
         dlx = int(args["DLX"])
-    puzzleSolver = Solver(solverLog | allLog, originalImage, bkt, dlx, colour, cpp)
+
+    puzzleSolver = Solver(solverLog | allLog, originalImage, bkt, dlx, colour, cpp, jigsaw)
 
     if puzzleSolver.solveBackTracking(pieces):
         if show:

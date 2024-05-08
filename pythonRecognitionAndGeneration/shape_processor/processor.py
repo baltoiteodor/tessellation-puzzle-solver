@@ -6,6 +6,7 @@ from timeit import default_timer as timer
 from misc.piece import Piece
 from misc.contour import *
 from puzzle_solver.helper import trimGrid
+import numpy as np
 
 MAXSIZE = 1024
 DECREMENT = 0.1
@@ -30,6 +31,24 @@ def colourCenteredAt(image, center):
             num += 1
 
     return r // num, g // num, b // num
+
+
+def find_closest_contour_point(contour, point):
+    # Initialize minimum distance and the closest point
+    min_dist = float('inf')
+    closest_point = None
+
+    # Iterate over each point in the contour
+    for contour_point in contour:
+        # Calculate the Euclidean distance between the given point and the current contour point
+        dist = np.linalg.norm(contour_point[0] - point)
+
+        # Update minimum distance and closest point if current distance is smaller
+        if dist < min_dist:
+            min_dist = dist
+            closest_point = tuple(contour_point[0])
+
+    return closest_point
 
 
 class Processor:
@@ -72,7 +91,7 @@ class Processor:
                 x, y, w, h = c.getBoundingRect()
 
                 # Create a rotated rectangle manually from the bounding rectangle
-                center = (x + w/2, y + h/2)
+                center = (x + w / 2, y + h / 2)
                 size = (w, h)
                 angle = 0  # Since it's a straight rectangle, the angle is 0
                 rect = (center, size, angle)
@@ -150,6 +169,111 @@ class Processor:
             print("---")
             print("----------------------------")
             print("---")
+
+    def findGridsJigsaw(self):
+        # Declare a dictionary from contours to their minimum rectangle for future use
+        # Find the smallest edge first, this will be a potential candidate for the unit length.
+
+        if self._logger:
+            self._startTime = timer()
+            print(f"Entering Processor class...")
+            print("Trying to find a good unit length for the grids of the jigsaw pieces...")
+            print("Looking for the smallest edge in the contours for a starting value.")
+
+        maxArea = 0
+        for contour in self._contours:
+            if contour.getArea() > maxArea:
+                maxArea = contour.getArea()
+
+        piecesArea = 0
+        for contour in self._contours:
+            if contour.getArea() != maxArea:
+                piecesArea += contour.getArea()
+        rows = 3
+        columns = 4
+        print(piecesArea)
+        a = piecesArea / (9 * rows * columns)
+        print(a)
+        unitLen = int(np.sqrt(a))
+
+        print("UnitLen: ", unitLen)
+        print("Max ", maxArea)
+        # TODO: add the board piece separately.
+        # Will trim this grid after matching with piece.
+        for contour in self._contours:
+            # print("Hm: ", contour, contour.getArea())
+            x, y, w, h = contour.getBoundingRect()
+            topLeft = (x, y)
+            closestPoint = find_closest_contour_point(contour.getOriginalContour(), np.array(topLeft))
+
+            # Create an image to draw the contour and the closest point
+            img = np.zeros((y+h+10, x+w+10, 3), dtype=np.uint8)
+            adjustedC = contour.getOriginalContour() - (x - 200, y - 200)
+            # Draw the contour
+            cv.drawContours(img, [adjustedC], -1, (0, 255, 0), 2)  # Green contour
+
+            # Draw a circle at the closest point
+            adjusted_closest_point = (closestPoint[0] - x + 200, closestPoint[1] - y + 200)
+            cv.circle(img, adjusted_closest_point, 5, (0, 0, 255), -2)  # Red circle
+            adjusted_closest_point = (closestPoint[0] - x + 200 - unitLen, closestPoint[1] - y + 200 - unitLen)
+            cv.circle(img, adjusted_closest_point, 5, (0, 0, 255), -2)  # Red circle
+            for row in range(6):
+                for col in range(6):
+                    centreX = closestPoint[0] - x + 200 - unitLen + row * unitLen
+                    centreY = closestPoint[1] - y + 200 - unitLen + col * unitLen
+                    centreUnit = (int(centreX), int(centreY))
+                    cv.circle(img, centreUnit, 5, (0, 0, 255), -2)  # Red circle
+
+
+            # After obtaining the closest point, this will also be the top left corner of the jigsaw piece. Hence, we
+            # create the grid based on this coordinate. We extract from this coordinate a unit length and match a 6x6
+            # grid.
+
+            gridX = closestPoint[0] - unitLen
+            gridY = closestPoint[1] - unitLen
+            noOnes = 0
+
+            if contour.getArea() == maxArea:
+                grid = np.ones((3 * rows, 3 * columns))
+                noOnes = 9 * rows * columns
+            else:
+                grid = np.zeros((6, 6))
+
+                for row in range(6):
+                    for col in range(6):
+                        centreX = gridX + row * unitLen + unitLen / 2
+                        centreY = gridY + col * unitLen + unitLen / 2
+
+                        # For this centre of the cell we can check if it is inside the contour and deem
+                        # if we place a 1 in the grid.
+                        centreUnit = (int(centreX), int(centreY))
+                        isIn = cv.pointPolygonTest(contour.getContour(), centreUnit, False)
+                        if isIn >= 0:
+                            # Mark this unit as 1 in the grid.
+                            grid[col][row] = 1
+                            noOnes += 1
+                        else:
+                            grid[col][row] = 0
+
+            grid = grid.astype(int)
+            # Remove borderline zeroes.
+            grid = trimGrid(grid)
+            print("For piece this is the grid ", grid)
+            newPiece: Piece = Piece(contour, grid, contour.getColour(), unitLen, (gridX, gridY))
+            newPiece.canBeBoard(noOnes == newPiece.area())
+            self._pieces.append(newPiece)
+            # Show the image
+            # cv.imshow('Contour with Closest Point', img)
+            # cv.waitKey(0)
+
+
+        if self._logger:
+                self._endTime = timer()
+                print("Grids completed successfully.")
+                print(f"Exiting Processor class: {self._endTime - self._startTime}...")
+                print("---")
+                print("----------------------------")
+                print("---")
 
     # Basically calculate a potential maximum unit length for each bounding rectangle and compare to a global maximum.
     def _findMinUnitLen(self):

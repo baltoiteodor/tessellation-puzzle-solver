@@ -84,7 +84,8 @@ class PreProcessor:
     def pyrMeanShiftFilter(self):
         # filteredImage = cv2.bilateralFilter(self._image, 30, 80, 80)
         labImage = cv2.cvtColor(self._image, cv2.COLOR_BGR2LAB)
-        filteredImage = cv2.pyrMeanShiftFiltering(labImage, 50, 20)
+        # filteredImage = cv2.pyrMeanShiftFiltering(labImage, 50, 20) This was good for some reason
+        filteredImage = cv2.pyrMeanShiftFiltering(labImage, 15, 25)
         cv2.imwrite("pyr.png", filteredImage)
         self._image = filteredImage
 
@@ -128,7 +129,7 @@ class PreProcessor:
         closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
         cv2.imwrite("openingmorph.png", opening)
         cv2.imwrite("closemor.png", closing)
-        self._image = closing
+        self._image = opening
 
     def adaptiveThreshold(self, blockSize, C):
         self._image = cv2.adaptiveThreshold(self._image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
@@ -159,3 +160,42 @@ class PreProcessor:
         cv2.imwrite("thresh.jpg", threshImage)
 
         self._image = threshImage
+
+    def jigsaw2D(self):
+        # Dau un blur in cap.
+        # self.applyBlur(33)
+        # self._image = cv2.cvtColor(self._image, cv2.COLOR_BGR2HSV)
+        # self.applyContrast(1.5, 0)
+        # self.lab()
+        lab = cv2.cvtColor(self._image, cv2.COLOR_BGR2LAB)
+
+        # Split the LAB image into L, A, and B channels
+        l, a, b = cv2.split(lab)
+
+        # Apply histogram equalization to the L channel
+        l_eq = cv2.equalizeHist(l)
+
+        # Merge the equalized L channel with the original A and B channels
+        lab_eq = cv2.merge((l_eq, a, b))
+
+        # Convert the LAB image back to BGR color space
+        enhanced_image = cv2.cvtColor(lab_eq, cv2.COLOR_LAB2BGR)
+        cv2.imwrite("enh.jpg", enhanced_image)
+
+
+        # Apply CLAHE to the L channel
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        l_clahe = clahe.apply(l)
+
+        # Merge the CLAHE-enhanced L channel with the original A and B channels
+        lab_clahe = cv2.merge((l_clahe, a, b))
+
+        # Convert the LAB image back to BGR color space
+        enhanced_image_clahe = cv2.cvtColor(lab_clahe, cv2.COLOR_LAB2BGR)
+        cv2.imwrite("enh2.jpg", enhanced_image_clahe)
+
+        self._image = enhanced_image
+        self.gray()
+        self.adaptiveThreshold(23, 7)
+        self.morphologicalOpen()
+        # self.pyrMeanShiftFilter()
