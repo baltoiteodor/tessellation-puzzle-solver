@@ -137,6 +137,7 @@ class ShapeFinder:
         filteredContours = []
         H, W = image.shape[:2]
         AREA = H * W
+        clt = []
         for i, contour in enumerate(contours):
             area = cv.contourArea(contour)
 
@@ -147,10 +148,11 @@ class ShapeFinder:
             if not MINAREA < area < MAXAREA:
                 continue
 
+            clt.append(contour)
             filteredContours.append(Contour(contour, originalImage, i))
 
-        # cv.drawContours(contourFiltered, filteredContours, -1, (0, 255, 0), 2)
-        # cv.imwrite('contoursagainButFiltered.png', contourFiltered)
+        cv.drawContours(contourFiltered, clt, -1, (0, 255, 0), 2)
+        cv.imwrite('contoursagainButFiltered.png', contourFiltered)
 
         if self._logger:
             print("Contours have been found and triaged...")

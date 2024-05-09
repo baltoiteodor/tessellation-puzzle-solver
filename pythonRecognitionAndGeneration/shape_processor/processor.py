@@ -5,7 +5,7 @@ from timeit import default_timer as timer
 
 from misc.piece import Piece
 from misc.contour import *
-from puzzle_solver.helper import trimGrid
+from puzzle_solver.helper import trimGrid, findClosestContourPoint
 import numpy as np
 
 MAXSIZE = 1024
@@ -31,24 +31,6 @@ def colourCenteredAt(image, center):
             num += 1
 
     return r // num, g // num, b // num
-
-
-def find_closest_contour_point(contour, point):
-    # Initialize minimum distance and the closest point
-    min_dist = float('inf')
-    closest_point = None
-
-    # Iterate over each point in the contour
-    for contour_point in contour:
-        # Calculate the Euclidean distance between the given point and the current contour point
-        dist = np.linalg.norm(contour_point[0] - point)
-
-        # Update minimum distance and closest point if current distance is smaller
-        if dist < min_dist:
-            min_dist = dist
-            closest_point = tuple(contour_point[0])
-
-    return closest_point
 
 
 class Processor:
@@ -204,7 +186,7 @@ class Processor:
             # print("Hm: ", contour, contour.getArea())
             x, y, w, h = contour.getBoundingRect()
             topLeft = (x, y)
-            closestPoint = find_closest_contour_point(contour.getOriginalContour(), np.array(topLeft))
+            closestPoint = findClosestContourPoint(contour.getOriginalContour(), np.array(topLeft))
 
             # Create an image to draw the contour and the closest point
             img = np.zeros((y+h+10, x+w+10, 3), dtype=np.uint8)
@@ -217,6 +199,7 @@ class Processor:
             cv.circle(img, adjusted_closest_point, 5, (0, 0, 255), -2)  # Red circle
             adjusted_closest_point = (closestPoint[0] - x + 200 - unitLen, closestPoint[1] - y + 200 - unitLen)
             cv.circle(img, adjusted_closest_point, 5, (0, 0, 255), -2)  # Red circle
+
             for row in range(6):
                 for col in range(6):
                     centreX = closestPoint[0] - x + 200 - unitLen + row * unitLen

@@ -22,6 +22,7 @@ class Solver:
         self._size = 0
         self._cpp = cpp
         self._jigsaw = jigsaw
+        self._dictIndexToPiece = {}
 
     # The solve method will take as input an array of 2d arrays representing puzzle pieces and try to solve the puzzle.
     def solveBackTracking(self, pieces: Pieces):
@@ -84,6 +85,9 @@ class Solver:
             print("Indexed pieces: ")
             print(pieces)
 
+        for piece in pieces:
+            self._dictIndexToPiece[piece.orderNum()] = piece
+
         self._size = len(pieces)
         self._sol = [0 for _ in range(self._size)]
         outcome = None
@@ -94,6 +98,7 @@ class Solver:
         elif self._dlx != -1:
             outcome = self._DLX(boardPiece, pieces, self._dlx, outputMatrix)
 
+        self._output = outputMatrix
         if outcome:
             # Construct matrix with colours.
             self._solution = [[(0.0, 0.0, 0.0) for _ in range(boardPiece.columns())] for _ in range(boardPiece.rows())]
@@ -308,3 +313,9 @@ class Solver:
 
     def getSolution(self):
         return self._solution
+
+    def getDictPieces(self):
+        return self._dictIndexToPiece
+
+    def getOutput(self):
+        return self._output

@@ -128,6 +128,88 @@ def calculatePiecesArea(pieces: Pieces):
         area += pc.getOriginalContour().getArea()
 
     return area
+
+def findClosestContourPoint(contour, point):
+    # Initialize minimum distance and the closest point
+    min_dist = float('inf')
+    closest_point = None
+
+    # Iterate over each point in the contour
+    for contour_point in contour:
+        # Calculate the Euclidean distance between the given point and the current contour point
+        dist = np.linalg.norm(contour_point[0] - point)
+
+        # Update minimum distance and closest point if current distance is smaller
+        if dist < min_dist:
+            min_dist = dist
+            closest_point = tuple(contour_point[0])
+
+    return closest_point
+
+
+# 1st argument: 2D array with indexes for the pieces.
+# 2nd argument: dictionary from index of piece to the corresponding piece.
+# Construct the image solution of the puzzle.
+
+def printJigsaw(outputMatrix, dictToPieces, originalImage):
+    # Map pieces to their top left corner, as well as establish a relation between the corner and the top left of the
+    # piece bounding rectangle.
+    dictToLeftCorners = {}
+    dictToRightCorners = {}
+    dictToMoveVectorsRect = {}
+    # Distance from right corner of jigsaw to left corner of jigsaw.
+    dictToMoveVectorsPiece = {}
+
+    for idx in dictToPieces.keys():
+        currentPiece = dictToPieces[idx]
+        x, y, h, w = currentPiece.getOriginalContour().getBoundingRect()
+        topLeftRect = (x, y)
+        # TODO: check if this is right.
+        topRightRect = (x, y + w)
+        topLeftCorner = findClosestContourPoint(currentPiece.getOriginalContour().getContour(), np.array(topLeftRect))
+        topRightCorner = findClosestContourPoint(currentPiece.getOriginalContour().getContour(), np.array(topRightRect))
+        moveVectorRect = np.array(topLeftCorner) - np.array(topLeftRect)
+        moveVectorPiece = np.array(topRightCorner) - np.array(topLeftRect)
+        # TODO: save this info.
+        dictToLeftCorners[idx] = topLeftCorner
+        dictToRightCorners[idx] = topRightCorner
+        dictToMoveVectorsRect[idx] = moveVectorRect
+        dictToMoveVectorsPiece[idx] = moveVectorPiece
+
+    # Next we will use the top left corners of pieces to place the jigsaw pieces in the new, originally black, image, by
+    # seeing what piece we need to place next based on the outputMatrix and previous placed pieces that will give the new
+    # locations of where top left corners should be placed. We will then use the move vectors to find the bounding rectangle
+    # position and use the createROI function to place the piece at that location.
+
+    # Starting to build the image.
+    print("Hmmmm: ", originalImage.shape)
+    solutionImage = np.zeros(originalImage.shape, dtype=np.uint8)
+    nextTopLeft = np.array((0, 0))
+    # Will use this dictionary to mark what pieces were already placed when iterating through the outputMatrix.
+    piecesDone = {}
+    for row in range(len(outputMatrix)):
+        for col in range(len(outputMatrix[row])):
+            if not (outputMatrix[row][col] in piecesDone):
+                if row > 0:
+                    cv2.imwrite("progress.png", solutionImage)
+                    return
+                pieceId = outputMatrix[row][col]
+                piecesDone[pieceId] = True
+                # TODO: place the piece somehow bigman. Should work for a first row somehow
+
+                # corner = dictToCorners[pieceId]
+                targetLocation = nextTopLeft - dictToMoveVectorsRect[pieceId]
+                currContour = dictToPieces[pieceId].getOriginalContour()
+                currContour.createROI(targetLocation, solutionImage)
+                # Calculate the new nextTopLeft somehow. Might be top right of the piece, aka the closest point
+                # to the top right of the bounding rectangle. Add move vector from the 2 corners to the nextTopLeft probably?
+                nextTopLeft += dictToMoveVectorsPiece[pieceId]
+                cv2.imwrite("progress.png", solutionImage)
+
+
+    cv2.imwrite("progress.png", solutionImage)
+
+
 def trimGrid(grid):
     # Remove the last columns if all zero.
     while np.all(grid[:, -1] == 0):

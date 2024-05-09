@@ -29,7 +29,48 @@ class Contour:
     #     resultImage = np.where(mask != 0, self._image, rotatedImage)
     #
     #     return resultImage
+    def createROI(self, targetLocation, targetImage):
+        targetSize = targetImage.shape[:2]
 
+        # Create a mask from the contour
+        mask = np.zeros(self._image.shape[:2], dtype=np.uint8)
+        cv2.drawContours(mask, [self._originalContour], -1, 255, -1)  # Draw filled contour
+
+        # Create the ROI from the mask on the original image
+        roi = cv2.bitwise_and(self._image, self._image, mask=mask)
+
+        # Calculate the bounding box of the contour to extract the minimal area
+        x, y, w, h = cv2.boundingRect(self._originalContour)
+
+        # Extract the region of interest using the bounding rectangle
+        extractedShape = roi[y:y+h, x:x+w]
+
+        # Prepare the mask for this shape to be used in the target image
+        shapeMask = mask[y:y+h, x:x+w]
+
+        # Location to place the shape on the target image
+        tx, ty = targetLocation
+
+        # Ensure the target location does not go out of bounds
+        if tx + w > targetSize[1] or ty + h > targetSize[0]:
+            raise ValueError("Target location goes out of bounds of the target image.")
+
+        # Prepare the region on the target image where the shape will be placed
+        targetRegion = targetImage[ty:ty+h, tx:tx+w]
+        # Mask out the area in the target image
+        print("uwu 2 ", extractedShape.shape)
+        print("uwu 3 ", shapeMask.shape)
+        targetRegionMasked = cv2.bitwise_and(targetRegion, targetRegion, mask=cv2.bitwise_not(shapeMask))
+        print("uwu ", targetRegionMasked.shape)
+
+        # Combine the extracted shape with the target region
+        finalRegion = cv2.add(targetRegionMasked, extractedShape)
+
+        # Place the combined region back into the target image
+        targetImage[ty:ty+h, tx:tx+w] = finalRegion
+
+        cv2.imwrite(f'mata{self._ordNum}.png', targetImage)
+        return targetImage
     def getOrdNum(self):
         return self._ordNum
 

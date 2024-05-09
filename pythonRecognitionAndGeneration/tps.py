@@ -13,6 +13,7 @@ from shape_finder.finder import ShapeFinder
 from shape_processor.processor import Processor
 from shape_rotation.rotator import Rotator
 from puzzle_solver.solver import Solver
+from puzzle_solver.helper import *
 
 import matplotlib.pyplot as plt
 
@@ -168,12 +169,15 @@ def main():
 
     if puzzleSolver.solveBackTracking(pieces):
         if show:
-            rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
+            if not jigsaw:
+                rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
 
-            # Display the RGB array using Matplotlib
-            plt.imshow(rgbArray)
-            plt.axis('off')  # Turn off axis labels
-            plt.show()
+                # Display the RGB array using Matplotlib
+                plt.imshow(rgbArray)
+                plt.axis('off')  # Turn off axis labels
+                plt.show()
+            else:
+                printJigsaw(puzzleSolver.getOutput(), puzzleSolver.getDictPieces(), originalImage)
         print("Puzzle is solvable.")
     else:
         print("Something is or went wrong with the puzzle.")
