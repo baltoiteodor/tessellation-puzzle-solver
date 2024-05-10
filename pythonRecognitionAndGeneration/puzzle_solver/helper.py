@@ -162,14 +162,31 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage):
 
     for idx in dictToPieces.keys():
         currentPiece = dictToPieces[idx]
-        x, y, h, w = currentPiece.getOriginalContour().getBoundingRect()
+        x, y, w, h = currentPiece.getOriginalContour().getBoundingRect()
         topLeftRect = (x, y)
         # TODO: check if this is right.
-        topRightRect = (x, y + w)
+        topRightRect = (x + w, y)
         topLeftCorner = findClosestContourPoint(currentPiece.getOriginalContour().getContour(), np.array(topLeftRect))
         topRightCorner = findClosestContourPoint(currentPiece.getOriginalContour().getContour(), np.array(topRightRect))
         moveVectorRect = np.array(topLeftCorner) - np.array(topLeftRect)
-        moveVectorPiece = np.array(topRightCorner) - np.array(topLeftRect)
+        moveVectorPiece = np.array(topRightCorner) - np.array(topLeftCorner)
+
+        # if moveVectorPiece[1] > 0:
+        #
+        #     img = np.zeros((2000, 2000, 3), dtype=np.uint8)
+        #
+        #     # Draw the contour
+        #     cv2.drawContours(img, [currentPiece.getOriginalContour().getContour() - np.array([[600, 1200]])], -1, (0, 255, 0), 2)  # Green for the contour
+        #
+        #     # Draw circles for the corners
+        #     cv2.circle(img, topLeftCorner - np.array((600, 1200)), 5, (255, 0, 0), -1)  # Red for topLeftCorner
+        #     cv2.circle(img, topRightCorner - np.array((600, 1200)), 5, (0, 0, 255), -1)  # Blue for topRightCorner
+        #     window_name = f"Contour {idx}"
+        #     cv2.imshow(window_name, img)
+        #     cv2.waitKey(0)
+
+
+        print("helo here: ", moveVectorPiece, moveVectorRect)
         # TODO: save this info.
         dictToLeftCorners[idx] = topLeftCorner
         dictToRightCorners[idx] = topRightCorner
@@ -194,8 +211,10 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage):
                     cv2.imwrite("progress.png", solutionImage)
                     return
                 pieceId = outputMatrix[row][col]
+                print("Current piece and stuff: ", pieceId, row, col, nextTopLeft)
+                print(dictToPieces[pieceId])
                 piecesDone[pieceId] = True
-                # TODO: place the piece somehow bigman. Should work for a first row somehow
+                # TODO: Does flip up because it rotates pieces. Try to rotate pieces and masks or sth.
 
                 # corner = dictToCorners[pieceId]
                 targetLocation = nextTopLeft - dictToMoveVectorsRect[pieceId]

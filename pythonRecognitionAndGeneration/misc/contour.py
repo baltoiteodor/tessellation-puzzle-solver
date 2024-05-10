@@ -58,8 +58,11 @@ class Contour:
         # Prepare the region on the target image where the shape will be placed
         targetRegion = targetImage[ty:ty+h, tx:tx+w]
         # Mask out the area in the target image
+        print("mortimati: ", targetLocation)
         print("uwu 2 ", extractedShape.shape)
         print("uwu 3 ", shapeMask.shape)
+        print("uwu ffs ", targetRegion.shape, w)
+
         targetRegionMasked = cv2.bitwise_and(targetRegion, targetRegion, mask=cv2.bitwise_not(shapeMask))
         print("uwu ", targetRegionMasked.shape)
 
