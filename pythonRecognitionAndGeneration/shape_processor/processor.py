@@ -34,12 +34,13 @@ def colourCenteredAt(image, center):
 
 
 class Processor:
-    def __init__(self, contours, logger: bool):
+    def __init__(self, contours, logger: bool, jigsawMode: bool):
         self._contours: Contours = contours
         self._logger = logger
         self.totalArea = 0
         self._pieces = []
         self._startTime = self._endTime = 0
+        self._jigsawMode = jigsawMode
 
     def findGrids(self):
         # Declare a dictionary from contours to their minimum rectangle for future use
@@ -133,7 +134,7 @@ class Processor:
                 grid = trimGrid(grid)
 
                 newPiece: Piece = Piece(c, grid, c.getColour(), unitLen, (topLeftX, topLeftY))
-                newPiece.canBeBoard(noOnes == newPiece.area())
+                newPiece.canBeBoard(noOnes == newPiece.area(), self._jigsawMode)
                 self._pieces.append(newPiece)
                 # Error is the maximum error per piece.
                 error = max(error, (abs(1 - coveredArea / pieceArea)))
@@ -243,7 +244,7 @@ class Processor:
             grid = trimGrid(grid)
             print("For piece this is the grid ", grid)
             newPiece: Piece = Piece(contour, grid, contour.getColour(), unitLen, (gridX, gridY))
-            newPiece.canBeBoard(noOnes == newPiece.area())
+            newPiece.canBeBoard(noOnes == newPiece.area(), self._jigsawMode)
             self._pieces.append(newPiece)
             # Show the image
             # cv.imshow('Contour with Closest Point', img)

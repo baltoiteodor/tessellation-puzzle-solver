@@ -29,7 +29,7 @@ class Contour:
     #     resultImage = np.where(mask != 0, self._image, rotatedImage)
     #
     #     return resultImage
-    def createROI(self, targetLocation, targetImage):
+    def createROI(self, targetLocation, targetImage, angle):
         targetSize = targetImage.shape[:2]
 
         # Create a mask from the contour
@@ -74,6 +74,72 @@ class Contour:
 
         cv2.imwrite(f'mata{self._ordNum}.png', targetImage)
         return targetImage
+
+    def rotateImage(self, image, angle):
+        # Grab the dimensions of the image and then determine the center
+        (height, width) = image.shape[:2]
+        (centerX, centerY) = (width // 2, height // 2)
+
+        # Grab the rotation matrix, then grab the sine and cosine
+        # (i.e., the rotation components of the matrix)
+        matrix = cv2.getRotationMatrix2D((centerX, centerY), angle, 1.0)
+        cos = np.abs(matrix[0, 0])
+        sin = np.abs(matrix[0, 1])
+
+        # Compute the new bounding dimensions of the image
+        newWidth = int((height * sin) + (width * cos))
+        newHeight = int((height * cos) + (width * sin))
+
+        # Adjust the rotation matrix to take into account translation
+        matrix[0, 2] += (newWidth / 2) - centerX
+        matrix[1, 2] += (newHeight / 2) - centerY
+
+        # Perform the actual rotation and return the image
+        return cv2.warpAffine(image, matrix, (newWidth, newHeight))
+
+    def createROIAtAngle(self, targetLocation, targetImg, rotationDegrees):
+        originalImg = self._image
+        # Create a mask from the contour
+        mask = np.zeros(originalImg.shape[:2], dtype=np.uint8)
+        cv2.drawContours(mask, [self._originalContour], -1, 255, -1)  # Draw filled contour
+
+        # Create the ROI from the mask on the original image
+        roi = cv2.bitwise_and(originalImg, originalImg, mask=mask)
+
+        # Calculate the bounding box of the contour to extract the minimal area
+        x, y, w, h = cv2.boundingRect(self._originalContour)
+        extractedShape = roi[y:y+h, x:x+w]
+        shapeMask = mask[y:y+h, x:x+w]
+
+        # Rotate the extracted shape and the mask
+        rotatedShape = self.rotateImage(extractedShape, rotationDegrees)
+        rotatedMask = self.rotateImage(shapeMask, rotationDegrees).astype(np.uint8)
+
+        # Calculate new dimensions
+        height, width = rotatedShape.shape[:2]
+        targetX, targetY = targetLocation
+
+        # Ensure the target location does not go out of bounds
+        if targetX + width > targetImg.shape[1] or targetY + height > targetImg.shape[0]:
+            raise ValueError("Target location goes out of bounds of the target image.")
+
+        # Prepare the region on the target image where the shape will be placed
+        targetRegion = targetImg[targetY:targetY+height, targetX:targetX+width]
+
+        print("Rotated Shape: ", rotatedShape.shape)
+        print("Rotated Mask: ", rotatedMask.shape)
+        print("Target Region: ", targetRegion.shape)
+
+        # Mask out the area in the target image
+        targetRegionMasked = cv2.bitwise_and(targetRegion, targetRegion, mask=cv2.bitwise_not(rotatedMask))
+
+        # Combine the rotated extracted shape with the target region
+        finalRegion = cv2.add(targetRegionMasked, rotatedShape)
+
+        # Place the combined region back into the target image
+        targetImg[targetY:targetY+height, targetX:targetX+width] = finalRegion
+
+        return targetImg
     def getOrdNum(self):
         return self._ordNum
 

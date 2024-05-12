@@ -151,7 +151,27 @@ def findClosestContourPoint(contour, point):
 # 2nd argument: dictionary from index of piece to the corresponding piece.
 # Construct the image solution of the puzzle.
 
-def printJigsaw(outputMatrix, dictToPieces, originalImage):
+def retrieveShape(outputMatrix, pieceId, row, col):
+    shape = np.zeros_like(outputMatrix)
+    fill(outputMatrix, pieceId, row, col, shape, len(outputMatrix), len(outputMatrix[0]))
+    shape = trimGrid(shape)
+    return shape
+
+def fill(outputMatrix, pieceId, row, col, shape, lenRows, lenCols):
+    if outputMatrix[row][col] == pieceId:
+        shape[row][col] = 1
+        outputMatrix[row][col] = 0
+        dx = [-1, 0, 1, 0]
+        dy = [0, 1, 0, -1]
+        for idx in range(4):
+            rowx = row + dx[idx]
+            colx = col + dy[idx]
+            if insideMatrix(rowx, colx, lenRows, lenCols):
+                fill(outputMatrix, pieceId, rowx, colx, shape, lenRows, lenCols)
+
+def insideMatrix(r, c, n, m):
+    return 0 <= r < n and 0 <= c < m
+def printJigsawBad(outputMatrix, dictToPieces, originalImage):
     # Map pieces to their top left corner, as well as establish a relation between the corner and the top left of the
     # piece bounding rectangle.
     dictToLeftCorners = {}
@@ -164,8 +184,11 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage):
         currentPiece = dictToPieces[idx]
         x, y, w, h = currentPiece.getOriginalContour().getBoundingRect()
         topLeftRect = (x, y)
-        # TODO: check if this is right.
+        # TODO: Calculate this after piece retrieval bcuz they will be rotated. Rethink this shit.
+
         topRightRect = (x + w, y)
+        botLeftRect = (x, y + h)
+        botRightRect = (x + w, y + h)
         topLeftCorner = findClosestContourPoint(currentPiece.getOriginalContour().getContour(), np.array(topLeftRect))
         topRightCorner = findClosestContourPoint(currentPiece.getOriginalContour().getContour(), np.array(topRightRect))
         moveVectorRect = np.array(topLeftCorner) - np.array(topLeftRect)
@@ -204,6 +227,7 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage):
     nextTopLeft = np.array((0, 0))
     # Will use this dictionary to mark what pieces were already placed when iterating through the outputMatrix.
     piecesDone = {}
+    piecesDone[0] = True
     for row in range(len(outputMatrix)):
         for col in range(len(outputMatrix[row])):
             if not (outputMatrix[row][col] in piecesDone):
@@ -211,15 +235,24 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage):
                     cv2.imwrite("progress.png", solutionImage)
                     return
                 pieceId = outputMatrix[row][col]
+                # Fill shape of piece in the output matrix.
+                pieceShape = retrieveShape(outputMatrix, pieceId, row, col)
+                print("Here is a piece shape extracted: ", pieceShape)
+                currentPiece = dictToPieces[pieceId]
+                # TODO: this will output the angle at which the piece is rotated at.
+                angle = currentPiece.retrieveAngle(pieceShape)
+                print("Angle: ", angle)
                 print("Current piece and stuff: ", pieceId, row, col, nextTopLeft)
                 print(dictToPieces[pieceId])
                 piecesDone[pieceId] = True
+
                 # TODO: Does flip up because it rotates pieces. Try to rotate pieces and masks or sth.
 
                 # corner = dictToCorners[pieceId]
                 targetLocation = nextTopLeft - dictToMoveVectorsRect[pieceId]
-                currContour = dictToPieces[pieceId].getOriginalContour()
-                currContour.createROI(targetLocation, solutionImage)
+                print("Target Location: ", targetLocation)
+                currContour = currentPiece.getOriginalContour()
+                currContour.createROIAtAngle(targetLocation, solutionImage, angle)
                 # Calculate the new nextTopLeft somehow. Might be top right of the piece, aka the closest point
                 # to the top right of the bounding rectangle. Add move vector from the 2 corners to the nextTopLeft probably?
                 nextTopLeft += dictToMoveVectorsPiece[pieceId]
@@ -227,6 +260,51 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage):
 
 
     cv2.imwrite("progress.png", solutionImage)
+
+
+def printJigsaw(outputMatrix, dictToPieces, originalImage):
+
+    solutionImage = np.zeros(originalImage.shape, dtype=np.uint8)
+    nextTopLeft = np.array((0, 0))
+    piecesDone = {}
+    piecesDone[0] = True
+    for row in range(len(outputMatrix)):
+        for col in range(len(outputMatrix[row])):
+            if not (outputMatrix[row][col] in piecesDone):
+                if row > 0:
+                    cv2.imwrite("progress.png", solutionImage)
+                    return
+                pieceId = outputMatrix[row][col]
+                # Fill shape of piece in the output matrix.
+                pieceShape = retrieveShape(outputMatrix, pieceId, row, col)
+                print("Here is a piece shape extracted: ", pieceShape)
+                currentPiece = dictToPieces[pieceId]
+                angle = currentPiece.retrieveAngle(pieceShape)
+                print("Angle: ", angle)
+                print("Current piece and stuff: ", pieceId, row, col, nextTopLeft)
+                piecesDone[pieceId] = True
+
+                # TODO: Might want to do alat in a go, not separate, idt it s possible.
+                # Get the piece contour and rotate it at the desired angle.
+                currContour = currentPiece.getOriginalContour()
+                # TODO: ...
+
+                # Calculate the top-left corner of the jigsaw piece and find the moving vector from its bounding
+                # rectangle top-left.
+
+                # TODO: ...
+
+                # Place the newly rotated piece in the target image.
+
+                # TODO: ...
+
+                # Calculate top-right corner of the jigsaw piece to find moving vector by which we can calculate the
+                # nextTopLeft, a.k.a. where we will place the next piece.
+
+                # TODO: ...
+
+                # targetLocation =
+                currContour.createROIAtAngle(targetLocation, solutionImage, angle)
 
 
 def trimGrid(grid):

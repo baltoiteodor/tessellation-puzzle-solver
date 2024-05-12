@@ -34,36 +34,39 @@ class Piece:
         self._topLeft = topLeft
         self._numRotations = 0
         self._currentRotation = 0
+        self._currentAngle = 0
 
-    def canBeBoard(self, canBoard: bool):
+    def canBeBoard(self, canBoard: bool, jigsawMode):
         # Here we calculate all possible rotations and how many there are for this piece.
         # Calculate numRotations in general by rotating the piece and add it to the map.
         self._numRotations = 1
         self._boardable = canBoard
         while True:
             self._rotate90()
-            # print(self.getGrid())
-            # print(self._allGrids[0])
-            if np.array_equal(self.getGrid(), self._allGrids[0]):
+            if (not jigsawMode) and np.array_equal(self.getGrid(), self._allGrids[0]):
+                break
+            if jigsawMode and self._currentAngle == 0:
                 break
             self._numRotations += 1
             self._allGrids.append(self.getGrid())
 
         # Clock-wise rotations complete. Next are the horizontal flip + rotations.
-        self._flipH()
-        if np.array_equal(self.getGrid(), self._allGrids[0]):
-            # No more rotations
-            self.setGrid(self._allGrids[0])
-            return
-        rot = self._numRotations
-        self._numRotations += 1
-        self._allGrids.append(self.getGrid())
-        while True:
-            self._rotate90()
-            if np.array_equal(self.getGrid(), self._allGrids[rot]):
-                break
+        # Available only for tessellation puzzles.
+        if not jigsawMode:
+            self._flipH()
+            if np.array_equal(self.getGrid(), self._allGrids[0]):
+                # No more rotations
+                self.setGrid(self._allGrids[0])
+                return
+            rot = self._numRotations
             self._numRotations += 1
             self._allGrids.append(self.getGrid())
+            while True:
+                self._rotate90()
+                if np.array_equal(self.getGrid(), self._allGrids[rot]):
+                    break
+                self._numRotations += 1
+                self._allGrids.append(self.getGrid())
 
         # Now we have all grids and their number.
         # print(f"For piece {self._grid}, we have rotations: ", self._allGrids)
@@ -86,6 +89,8 @@ class Piece:
         oldCols = self.columns()
         self.setRowsNum(oldCols)
         self.setColsNum(oldRows)
+        self._currentAngle += 90
+        self._currentAngle %= 360
 
     def rotatePiece(self):
         # Set board to next rotation in line from the array of grids.
@@ -96,6 +101,12 @@ class Piece:
         self.setGrid(self._allGrids[self._currentRotation])
         self.setRowsNum(len(self._grid))
         self.setColsNum(len(self._grid[0]))
+
+    def retrieveAngle(self, grid):
+        for i, currGrid in enumerate(self._allGrids):
+            if np.array_equal(grid, currGrid):
+                return i * 90
+        return 0
 
     def getTopLeft(self):
         return self._topLeft
@@ -143,6 +154,9 @@ class Piece:
 
     def getColour(self):
         return self._colour
+
+    def getCurrentAngle(self):
+        return self._currentAngle
 
     # def getColourGrid(self):
     #     return self._colours

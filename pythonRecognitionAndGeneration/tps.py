@@ -143,7 +143,7 @@ def main():
     # Find the units in which to break the shapes.
     # Grid the smallest rectangle in a grid with units lxl, where l is a divisor of the smallest side.
     # Look for the biggest l s.t. the area lost in the process is less than a given percent.
-    processor = Processor(rotatedContours, processorLog | allLog)
+    processor = Processor(rotatedContours, processorLog | allLog, jigsaw)
     if jigsaw:
         processor.findGridsJigsaw()
     else:
