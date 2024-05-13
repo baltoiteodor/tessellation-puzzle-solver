@@ -130,6 +130,10 @@ def calculatePiecesArea(pieces: Pieces):
     return area
 
 def findClosestContourPoint(contour, point):
+    if contour.ndim == 2 and contour.shape[1] == 2:
+        contour = contour.reshape(-1, 1, 2)
+    elif contour.ndim != 3:
+        raise ValueError("Contour must be a 3-dimensional array with shape (n, 1, 2).")
     # Initialize minimum distance and the closest point
     min_dist = float('inf')
     closest_point = None
@@ -146,6 +150,20 @@ def findClosestContourPoint(contour, point):
 
     return closest_point
 
+def findClosestPointOnMask(mask, target_point):
+    # Get indices where the mask is non-zero (i.e., points belonging to the contour)
+    y_indices, x_indices = np.nonzero(mask)
+    contour_points = np.column_stack((x_indices, y_indices))
+
+    # Calculate distances from each contour point to the target point
+    distances = np.sqrt((contour_points[:, 0] - target_point[0])**2 + (contour_points[:, 1] - target_point[1])**2)
+
+    # Get the index of the closest point
+    closest_point_index = np.argmin(distances)
+    closest_point = contour_points[closest_point_index]
+
+    return tuple(closest_point)
+
 
 # 1st argument: 2D array with indexes for the pieces.
 # 2nd argument: dictionary from index of piece to the corresponding piece.
@@ -161,9 +179,9 @@ def fill(outputMatrix, pieceId, row, col, shape, lenRows, lenCols):
     if outputMatrix[row][col] == pieceId:
         shape[row][col] = 1
         outputMatrix[row][col] = 0
-        dx = [-1, 0, 1, 0]
-        dy = [0, 1, 0, -1]
-        for idx in range(4):
+        dx = [-1, -1, -1, 0, 1, 1, 1, 0]
+        dy = [-1, 0, 1, 1, 1, 0, -1, -1]
+        for idx in range(8):
             rowx = row + dx[idx]
             colx = col + dy[idx]
             if insideMatrix(rowx, colx, lenRows, lenCols):
@@ -222,7 +240,7 @@ def printJigsawBad(outputMatrix, dictToPieces, originalImage):
     # position and use the createROI function to place the piece at that location.
 
     # Starting to build the image.
-    print("Hmmmm: ", originalImage.shape)
+    # print("Hmmmm: ", originalImage.shape)
     solutionImage = np.zeros(originalImage.shape, dtype=np.uint8)
     nextTopLeft = np.array((0, 0))
     # Will use this dictionary to mark what pieces were already placed when iterating through the outputMatrix.
@@ -237,17 +255,13 @@ def printJigsawBad(outputMatrix, dictToPieces, originalImage):
                 pieceId = outputMatrix[row][col]
                 # Fill shape of piece in the output matrix.
                 pieceShape = retrieveShape(outputMatrix, pieceId, row, col)
-                print("Here is a piece shape extracted: ", pieceShape)
+                # print("Here is a piece shape extracted: ", pieceShape)
                 currentPiece = dictToPieces[pieceId]
-                # TODO: this will output the angle at which the piece is rotated at.
                 angle = currentPiece.retrieveAngle(pieceShape)
-                print("Angle: ", angle)
-                print("Current piece and stuff: ", pieceId, row, col, nextTopLeft)
+                # print("Angle: ", angle)
+                # print("Current piece and stuff: ", pieceId, row, col, nextTopLeft)
                 print(dictToPieces[pieceId])
                 piecesDone[pieceId] = True
-
-                # TODO: Does flip up because it rotates pieces. Try to rotate pieces and masks or sth.
-
                 # corner = dictToCorners[pieceId]
                 targetLocation = nextTopLeft - dictToMoveVectorsRect[pieceId]
                 print("Target Location: ", targetLocation)
@@ -262,18 +276,94 @@ def printJigsawBad(outputMatrix, dictToPieces, originalImage):
     cv2.imwrite("progress.png", solutionImage)
 
 
+def rotateImage(image, angle, center):
+    # cv2.imwrite(f"checker{angle}1.png", image)
+    height, width = image.shape[:2]
+    matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+    cos = np.abs(matrix[0, 0])
+    sin = np.abs(matrix[0, 1])
+    new_width = int((height * sin) + (width * cos))
+    new_height = int((height * cos) + (width * sin))
+    matrix[0, 2] += (new_width / 2) - center[0]
+    matrix[1, 2] += (new_height / 2) - center[1]
+    rotated_img = cv2.warpAffine(image, matrix, (new_width, new_height))
+    # cv2.imwrite(f"checker{angle}2.png", rotated_img)
+
+    return rotated_img
+
+def placeAndRotateContour(contour, angle, original_img, target_img, nextTopLeft):
+    # Create a mask and extract the ROI
+    mask = np.zeros(original_img.shape[:2], dtype=np.uint8)
+    cv2.drawContours(mask, [contour], -1, 255, -1)
+    x, y, w, h = cv2.boundingRect(contour)
+    roi = cv2.bitwise_and(original_img, original_img, mask=mask)
+    extracted = roi[y:y+h, x:x+w]
+    mask_extracted = mask[y:y+h, x:x+w]
+    print("Size mask: ", mask_extracted.shape)
+    # cv2.imwrite(f"maPrior{angle}.png", mask_extracted)
+
+    center = (w // 2, h // 2)
+    rotated_img = rotateImage(extracted, angle, center)
+    rotated_mask = rotateImage(mask_extracted, angle, center)
+
+    print("Size rot mask: ", rotated_mask.shape)
+    non_zero_points = np.column_stack(np.where(rotated_mask > 0))
+    min_x, min_y = non_zero_points.min(axis=0)
+    max_x, max_y = non_zero_points.max(axis=0)
+
+    topLeftRect = (min_y, min_x)
+    topRightRect = (max_y, min_x)
+    botLeftRect = (min_y, max_x)
+    # cv2.imwrite(f"ma{angle}.png", rotated_mask)
+    topLeftCorner = findClosestPointOnMask(rotated_mask, np.array(topLeftRect))
+    topRightCorner = findClosestPointOnMask(rotated_mask, np.array(topRightRect))
+    botLeftCorner = findClosestPointOnMask(rotated_mask, np.array(botLeftRect))
+    print("Current target: ", nextTopLeft)
+    print("offset", topLeftRect[0] - topLeftCorner[0], topLeftRect[1] - topLeftCorner[1])
+    print("Bounding: ", botLeftRect, topLeftRect, topRightRect)
+    print(topLeftCorner, topRightCorner)
+
+    placement_x = nextTopLeft[0] + (topLeftRect[0] - topLeftCorner[0])
+    placement_y = nextTopLeft[1] + (topLeftRect[1] - topLeftCorner[1])
+
+    target_area = target_img[placement_y:placement_y + rotated_img.shape[0], placement_x:placement_x + rotated_img.shape[1]]
+    mask_resized = cv2.resize(rotated_mask, (target_area.shape[1], target_area.shape[0]))
+
+    target_region_masked = cv2.bitwise_and(target_area, target_area, mask=cv2.bitwise_not(mask_resized))
+    final_region = cv2.add(target_region_masked, cv2.bitwise_and(rotated_img, rotated_img, mask=mask_resized))
+
+    target_img[placement_y:placement_y + rotated_img.shape[0], placement_x:placement_x + rotated_img.shape[1]] = final_region
+
+    newNextTopLeft = (nextTopLeft[0] + (topRightCorner[0] - topLeftCorner[0]), nextTopLeft[1] + (topRightCorner[1] - topLeftCorner[1]))
+    newNextBotLeft = (nextTopLeft[0] + (botLeftCorner[0] - topLeftCorner[0]), nextTopLeft[1] + (botLeftCorner[1] - topLeftCorner[1]))
+
+    return newNextTopLeft, newNextBotLeft
+
+def getNextRow(outputMatrix, row):
+    for r in range(row, len(outputMatrix)):
+        if outputMatrix[r][0] != 0:
+            return r
+    return -1
 def printJigsaw(outputMatrix, dictToPieces, originalImage):
 
     solutionImage = np.zeros(originalImage.shape, dtype=np.uint8)
     nextTopLeft = np.array((0, 0))
     piecesDone = {}
     piecesDone[0] = True
+    # In our case, we will have the same amount of pieces on each row, so we can store the botLefts and
+    # keep them for future topLefts.
+    botLefts = {}
+    beenThru = 0
     for row in range(len(outputMatrix)):
+        row = getNextRow(outputMatrix, row)
+        currIndex = 0
+        if row == -1:
+            break
         for col in range(len(outputMatrix[row])):
             if not (outputMatrix[row][col] in piecesDone):
-                if row > 0:
-                    cv2.imwrite("progress.png", solutionImage)
-                    return
+                # if row > 0:
+                #     cv2.imwrite("progress.png", solutionImage)
+                #     return
                 pieceId = outputMatrix[row][col]
                 # Fill shape of piece in the output matrix.
                 pieceShape = retrieveShape(outputMatrix, pieceId, row, col)
@@ -286,7 +376,17 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage):
 
                 # TODO: Might want to do alat in a go, not separate, idt it s possible.
                 # Get the piece contour and rotate it at the desired angle.
-                currContour = currentPiece.getOriginalContour()
+                currContour = currentPiece.getOriginalContour().getContour()
+                if beenThru == 0:
+                    print("HARO EVERYNIAN: ", row, nextTopLeft)
+                    nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle, originalImage, solutionImage, nextTopLeft)
+                else:
+                    print("HARO EVERYNIAN: ", row, botLefts[currIndex])
+                    nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle, originalImage, solutionImage, botLefts[currIndex])
+                print("mm: ", nextTopLeft)
+                print("mmBotLeft: ", botLeft)
+                botLefts[currIndex] = botLeft
+                currIndex += 1
                 # TODO: ...
 
                 # Calculate the top-left corner of the jigsaw piece and find the moving vector from its bounding
@@ -304,8 +404,10 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage):
                 # TODO: ...
 
                 # targetLocation =
-                currContour.createROIAtAngle(targetLocation, solutionImage, angle)
+                # currContour.createROIAtAngle(targetLocation, solutionImage, angle)
+        beenThru += 1
 
+    cv2.imwrite("progress.png", solutionImage)
 
 def trimGrid(grid):
     # Remove the last columns if all zero.
