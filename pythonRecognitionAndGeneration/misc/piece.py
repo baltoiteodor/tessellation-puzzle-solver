@@ -2,7 +2,44 @@ import numpy as np
 
 from misc.contour import Contour
 from misc.types import *
+import cv2
+import matplotlib.pyplot as plt
 
+def trimColourGrid(grid):
+    # Convert the list of lists to a NumPy array for easier manipulation
+    grid = np.array(grid)
+
+    # Assuming that each element in the grid can be compared to (0, 0, 0)
+    black = np.array([0, 0, 0], dtype=np.uint8)
+
+    # Remove the last columns if all zero.
+    while np.all(np.all(grid[:, -1] == black, axis=1)):
+        grid = grid[:, :-1]
+
+    # Remove leading columns with all zeros
+    while np.all(np.all(grid[:, 0] == black, axis=1)):
+        grid = grid[:, 1:]
+
+    # Remove the last row if all zero.
+    while np.all(np.all(grid[-1, :] == black, axis=1)):
+        grid = grid[:-1, :]
+
+    # Remove leading rows with all zeros
+    while np.all(np.all(grid[0, :] == black, axis=1)):
+        grid = grid[1:, :]
+
+    return grid
+
+
+def similarGrids(grid1, grid2):
+    if (len(grid1) != len(grid2)) or (len(grid1[0]) != len(grid2[0])):
+        return False
+
+    for r in range(len(grid1)):
+        for c in range(len(grid1[0])):
+            if (grid1[r][c] == 0 and grid2[r][c] != 0) or (grid1[r][c] != 0 and grid2[r][c] == 0):
+                return False
+    return True
 
 class Piece:
     _numRows: int = 0
@@ -35,6 +72,11 @@ class Piece:
         self._numRotations = 0
         self._currentRotation = 0
         self._currentAngle = 0
+
+        # Made this for jigsaw colour matching.
+        self._colourGrid = []
+        self._allColourGrids = []
+
 
     def canBeBoard(self, canBoard: bool, jigsawMode):
         # Here we calculate all possible rotations and how many there are for this piece.
@@ -92,6 +134,15 @@ class Piece:
         self._currentAngle += 90
         self._currentAngle %= 360
 
+    def _rotateColourGrid(self, rows, columns, index):
+        rotatedColouredGrid = [[(0, 0, 0) for _ in range(rows)] for _ in range(columns)]
+        # print(rotatedGrid)
+        for i in range(rows):
+            for j in range(columns):
+                rotatedColouredGrid[j][rows - i - 1] = self._allColourGrids[index][i][j]
+
+        self._allColourGrids.append(rotatedColouredGrid)
+
     def rotatePiece(self):
         # Set board to next rotation in line from the array of grids.
         self._currentRotation += 1
@@ -99,14 +150,105 @@ class Piece:
             self._currentRotation = 0
 
         self.setGrid(self._allGrids[self._currentRotation])
+        self._setColourGrid(self._allColourGrids[self._currentRotation])
         self.setRowsNum(len(self._grid))
         self.setColsNum(len(self._grid[0]))
 
     def retrieveAngle(self, grid):
         for i, currGrid in enumerate(self._allGrids):
-            if np.array_equal(grid, currGrid):
+            if similarGrids(grid, currGrid):
                 return i * 90
         return 0
+
+    def computeColourGrid(self, blurredImage, copyGrid):
+        (gridX, gridY) = self._topLeft
+        self._colourGrid = [[(0, 0, 0) for _ in range(len(copyGrid[0]))] for _ in range(len(copyGrid))]
+        unit = self.getUnitLen()
+
+        # print("contour: ", copyGrid)
+        # print("ce plm", len(copyGrid), len(copyGrid[0]), len(self._colourGrid), len(self._colourGrid[0]))
+        # print(self._colourGrid)
+        # print("top: ", self._topLeft)
+        for i in range(len(copyGrid)):
+            for j in range(len(copyGrid[0])):
+                if copyGrid[i][j] > 0:
+                    # print(i, j)
+                    # Already in y, x format the grid.
+                    topY = gridY + i * unit
+                    topX = gridX + j * unit
+                    # First point will be the centre of the cell.
+                    centreX = topX + (unit / 2)
+                    centreY = topY + (unit / 2)
+                    # print("centre: ", centreX, centreY)
+                    # print(cv2.pointPolygonTest(self._originalContour.getContour(), (int(centreX), int(centreY)), False))
+                    # Find 4 other important points that are also inside the contour to average out.
+                    dx = []
+                    dy = []
+                    for px in range(30):
+                        for py in range(30):
+                            dx.append(px - 15)
+                            dy.append(py - 15)
+                    # dx = [-10, 0, 10, 0, 5, 5, 0, -5, -5, 0]
+                    # dy = [0, 10, 0, -10, 0, 5, 5,  0, -5, -5]
+                    points = []
+                    points.append((centreX, centreY))
+                    for mm in range(len(dx)):
+                        points.append((centreX + dx[mm], centreY + dy[mm]))
+                    insidePoints = [pt for pt in points if cv2.pointPolygonTest(self._originalContour.getContour(), pt, False) > 0]
+                    # print("Inside: ", insidePoints)
+                    cv2.imwrite("cema.png", blurredImage)
+                    colours = [blurredImage[int(y)][int(x)] for (x, y) in insidePoints]
+                    colours = np.array(colours, dtype=np.uint8).reshape(-1, 1, 3)
+                    # print("Check  this: ", colours)
+                    labColours = cv2.cvtColor(colours, cv2.COLOR_BGR2Lab)
+                    # print(labColours)
+                    # plt.imshow(labColours)
+                    # plt.axis('off')  # Turn off axis labels
+                    # plt.show()
+                    meanLAB = np.median(labColours, axis=0)[0]
+                    meanLAB = np.uint8([[meanLAB]])
+                    # plt.imshow(meanLAB)
+                    # plt.axis('off')  # Turn off axis labels
+                    # plt.show()
+
+                    # meanRGB = np.mean(colours, axis=0).astype(np.uint8)[0]
+                    # meanRGB = np.uint8(meanRGB])
+                    # print(meanRGB)
+                    meanRGB = cv2.cvtColor(meanLAB, cv2.COLOR_Lab2BGR)[0][0]
+                    self._colourGrid[i][j] = meanRGB
+        self._colourGrid = trimColourGrid(self._colourGrid)
+        self._allColourGrids.append(self._colourGrid)
+        rows = len(self._colourGrid)
+        cols = len(self._colourGrid[0])
+        # print(rows, cols)
+        self._rotateColourGrid(rows, cols, 0)
+        self._rotateColourGrid(cols, rows, 1)
+        self._rotateColourGrid(rows, cols, 2)
+
+        # print("fmmmmmmm?: ", self._allColourGrids)
+        # for c in self._allColourGrids:
+        #     plt.imshow(c)
+        #     plt.axis('off')  # Turn off axis labels
+        #     plt.show()
+        # Rotate this bad boy 3 more times and add to allColourGrids.
+
+        # Uncomment this if want to see how colours of pieces look. Okish for testing, might look weird bcuz of LAB.
+        # plt.imshow(self._colourGrid)
+        # plt.axis('off')  # Turn off axis labels
+        # plt.show()
+        # pass
+
+    def showColour(self):
+        plt.imshow(self._colourGrid)
+        plt.axis('off')  # Turn off axis labels
+        plt.show()
+    def getColourGrid(self):
+        return self._colourGrid
+
+    def _setColourGrid(self, colourGrid):
+        self._colourGrid = colourGrid
+    def getColourAt(self, row, col):
+        return self._colourGrid[row][col]
 
     def getTopLeft(self):
         return self._topLeft
@@ -119,7 +261,6 @@ class Piece:
 
     def setOrderNumber(self, num: int):
         self._orderNum = num
-
 
     def rows(self):
         return self._numRows

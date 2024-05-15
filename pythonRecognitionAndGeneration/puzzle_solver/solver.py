@@ -23,6 +23,7 @@ class Solver:
         self._cpp = cpp
         self._jigsaw = jigsaw
         self._dictIndexToPiece = {}
+        self._colourMap = []
 
     # The solve method will take as input an array of 2d arrays representing puzzle pieces and try to solve the puzzle.
     def solveBackTracking(self, pieces: Pieces):
@@ -48,25 +49,29 @@ class Solver:
             piece.setOrderNumber(index + 1)
 
         # Calculate real area of pieces to determine scale factor of board.
+        if not self._jigsaw:
+            piecesArea = calculatePiecesArea(pieces)
+            boardArea = initialBoardPiece.getOriginalContour().getArea()
+            scaler = np.sqrt(piecesArea / boardArea)
+            # print(scaler)
+            scaler = roundScaler(scaler)
+            if self._logger:
+                print("Scaler: ", scaler)
 
-        piecesArea = calculatePiecesArea(pieces)
-        boardArea = initialBoardPiece.getOriginalContour().getArea()
-        scaler = np.sqrt(piecesArea / boardArea)
-        # print(scaler)
-        scaler = roundScaler(scaler)
-        if self._logger:
-            print("Scaler: ", scaler)
+            verdict = True
+            if scaler != 1.0:
+                verdict, boardPiece = scalePiece(boardPiece, scaler, self._image)
 
-        verdict = True
-        if scaler != 1.0:
-            verdict, boardPiece = scalePiece(boardPiece, scaler, self._image)
-
-        if verdict == False:
-            return False
+            if verdict == False:
+                return False
 
         print("Board Piece: ", boardPiece)
         # In BGR format.
-        self._extractColourMap(boardPiece)
+        if not self._jigsaw:
+            self._extractColourMap(boardPiece)
+        else:
+            self._colourMap = boardPiece.getColourGrid()
+
         if self._logger:
             print(f"Puzzle Board:")
             print(board)
@@ -212,7 +217,7 @@ class Solver:
         return False
 
     def _DLX(self, boardPiece: Piece, pieces: Pieces, version, outputMatrix):
-        converter = ExactCoverConverter(boardPiece, pieces, self._colourMap, version, self._colourMatters)
+        converter = ExactCoverConverter(boardPiece, pieces, self._colourMap, version, self._colourMatters, self._jigsaw)
         width = converter.constructMatrix()
         if self._logger:
             converter.printMatrix()

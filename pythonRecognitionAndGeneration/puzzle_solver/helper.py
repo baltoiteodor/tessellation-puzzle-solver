@@ -15,6 +15,40 @@ setattr(np, "asscalar", patch_asscalar)
 
 COLOURTHRESHOLD = 25
 
+def resizeToDimensions(image, contour, target_width, target_height):
+    # Convert the contour to a numpy array if it isn't already
+    contour_np = np.array(contour, dtype=np.int32)
+
+    # Calculate the bounding box of the contour
+    x, y, w, h = cv2.boundingRect(contour_np)
+
+    # Calculate separate scale factors for width and height
+    width_scale = target_width / w
+    height_scale = target_height / h
+
+    # Scale the contour by applying different scale factors to x and y coordinates
+    scaled_contour = np.column_stack((
+        (contour_np[:, :, 0] - x) * width_scale,
+        (contour_np[:, :, 1] - y) * height_scale
+    )).astype(np.int32)
+
+    # Extract the region of interest (ROI) from the original image using the bounding box
+    roi = image[y:y+h, x:x+w]
+    cv2.imwrite('Notscaled.png', roi)
+
+    # Resize the ROI to the target dimensions
+    scaled_roi = cv2.resize(roi, (target_width, target_height), interpolation=cv2.INTER_LINEAR)
+
+    # Create a mask for the scaled contour
+    scaled_mask = np.zeros((target_height, target_width), dtype=np.uint8)
+    cv2.drawContours(scaled_mask, [scaled_contour], -1, (255), thickness=cv2.FILLED)
+
+    # Apply the scaled mask to the scaled ROI
+    scaled_roi_with_mask = cv2.bitwise_and(scaled_roi, scaled_roi, mask=scaled_mask)
+
+    # Save or return the scaled ROI with mask as an image
+    cv2.imwrite('scaled.png', scaled_roi_with_mask)
+    return scaled_contour, scaled_roi_with_mask
 
 def scalePiece(piece: Piece, scaleFactor, image):
     originalContour = piece.getOriginalContour().getContour()
@@ -115,7 +149,6 @@ def scalePiece(piece: Piece, scaleFactor, image):
 
 
     if error > 0.05:
-        # No point in trying for other pieces.
         return False, None
     return True, newPiece
 
@@ -299,14 +332,14 @@ def placeAndRotateContour(contour, angle, original_img, target_img, nextTopLeft)
     roi = cv2.bitwise_and(original_img, original_img, mask=mask)
     extracted = roi[y:y+h, x:x+w]
     mask_extracted = mask[y:y+h, x:x+w]
-    print("Size mask: ", mask_extracted.shape)
+    # print("Size mask: ", mask_extracted.shape)
     # cv2.imwrite(f"maPrior{angle}.png", mask_extracted)
 
     center = (w // 2, h // 2)
     rotated_img = rotateImage(extracted, angle, center)
     rotated_mask = rotateImage(mask_extracted, angle, center)
 
-    print("Size rot mask: ", rotated_mask.shape)
+    # print("Size rot mask: ", rotated_mask.shape)
     non_zero_points = np.column_stack(np.where(rotated_mask > 0))
     min_x, min_y = non_zero_points.min(axis=0)
     max_x, max_y = non_zero_points.max(axis=0)
@@ -318,10 +351,10 @@ def placeAndRotateContour(contour, angle, original_img, target_img, nextTopLeft)
     topLeftCorner = findClosestPointOnMask(rotated_mask, np.array(topLeftRect))
     topRightCorner = findClosestPointOnMask(rotated_mask, np.array(topRightRect))
     botLeftCorner = findClosestPointOnMask(rotated_mask, np.array(botLeftRect))
-    print("Current target: ", nextTopLeft)
-    print("offset", topLeftRect[0] - topLeftCorner[0], topLeftRect[1] - topLeftCorner[1])
-    print("Bounding: ", botLeftRect, topLeftRect, topRightRect)
-    print(topLeftCorner, topRightCorner)
+    # print("Current target: ", nextTopLeft)
+    # print("offset", topLeftRect[0] - topLeftCorner[0], topLeftRect[1] - topLeftCorner[1])
+    # print("Bounding: ", botLeftRect, topLeftRect, topRightRect)
+    # print(topLeftCorner, topRightCorner)
 
     placement_x = nextTopLeft[0] + (topLeftRect[0] - topLeftCorner[0])
     placement_y = nextTopLeft[1] + (topLeftRect[1] - topLeftCorner[1])
@@ -378,33 +411,15 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage):
                 # Get the piece contour and rotate it at the desired angle.
                 currContour = currentPiece.getOriginalContour().getContour()
                 if beenThru == 0:
-                    print("HARO EVERYNIAN: ", row, nextTopLeft)
-                    nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle, originalImage, solutionImage, nextTopLeft)
+                    # print("HARO EVERYNIAN: ", row, nextTopLeft)
+                    nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle, currentPiece.getOriginalContour().getImage(), solutionImage, nextTopLeft)
                 else:
-                    print("HARO EVERYNIAN: ", row, botLefts[currIndex])
-                    nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle, originalImage, solutionImage, botLefts[currIndex])
-                print("mm: ", nextTopLeft)
-                print("mmBotLeft: ", botLeft)
+                    # print("HARO EVERYNIAN: ", row, botLefts[currIndex])
+                    nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle, currentPiece.getOriginalContour().getImage(), solutionImage, botLefts[currIndex])
+                # print("mm: ", nextTopLeft)
+                # print("mmBotLeft: ", botLeft)
                 botLefts[currIndex] = botLeft
                 currIndex += 1
-                # TODO: ...
-
-                # Calculate the top-left corner of the jigsaw piece and find the moving vector from its bounding
-                # rectangle top-left.
-
-                # TODO: ...
-
-                # Place the newly rotated piece in the target image.
-
-                # TODO: ...
-
-                # Calculate top-right corner of the jigsaw piece to find moving vector by which we can calculate the
-                # nextTopLeft, a.k.a. where we will place the next piece.
-
-                # TODO: ...
-
-                # targetLocation =
-                # currContour.createROIAtAngle(targetLocation, solutionImage, angle)
         beenThru += 1
 
     cv2.imwrite("progress.png", solutionImage)
@@ -516,7 +531,10 @@ def emptyBoard(rows: int, cols: int):
 
 
 def similarColours(colour1, colour2, dict):
-
+    # print(colour1)
+    # print(colour2)
+    colour1 = tuple(colour1)
+    colour2 = tuple(colour2)
     pair = (colour1, colour2)
     pairRev = (colour2, colour1)
     if pair in dict:
@@ -524,7 +542,28 @@ def similarColours(colour1, colour2, dict):
 
     lab1 = convert_color(sRGBColor(colour1[0], colour1[1], colour1[2]), LabColor)
     lab2 = convert_color(sRGBColor(colour2[0], colour2[1], colour2[2]), LabColor)
+    # lab1 = LabColor(colour1[0], colour1[1], colour1[2])
+    # lab2 = LabColor(colour2[0], colour2[1], colour2[2])
+    distance = delta_e_cie2000(lab1, lab2)
+    ans = distance < COLOURTHRESHOLD
+    dict[pair] = ans
+    dict[pairRev] = ans
+    return ans
 
+def similarColoursJigsaw(colour1, colour2, dict):
+    # print(colour1)
+    # print(colour2)
+    colour1 = tuple(colour1)
+    colour2 = tuple(colour2)
+    pair = (colour1, colour2)
+    pairRev = (colour2, colour1)
+    if pair in dict:
+        return dict[pair]
+
+    lab1 = convert_color(sRGBColor(colour1[2], colour1[1], colour1[0]), LabColor)
+    lab2 = convert_color(sRGBColor(colour2[2], colour2[1], colour2[0]), LabColor)
+    # lab1 = LabColor(colour1[0], colour1[1], colour1[2])
+    # lab2 = LabColor(colour2[0], colour2[1], colour2[2])
     distance = delta_e_cie2000(lab1, lab2)
     ans = distance < COLOURTHRESHOLD
     dict[pair] = ans

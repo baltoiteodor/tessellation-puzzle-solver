@@ -3,12 +3,13 @@
 import numpy as np
 
 from misc.piece import Piece
-from puzzle_solver.helper import similarColours
+from puzzle_solver.helper import similarColours, similarColoursJigsaw
 from timeit import default_timer as timer
+import matplotlib.pyplot as plt
 
 
 class ExactCoverConverter:
-    def __init__(self, board: Piece, pieces, colourMap, version, colour):
+    def __init__(self, board: Piece, pieces, colourMap, version, colour, jigsaw):
         # Board will be the biggest piece filled with 1s. We shape the matrix w.r.t it.
         self._pypyColumns = None
         self._pypyRows = None
@@ -25,6 +26,7 @@ class ExactCoverConverter:
         self._debugChecks = 0
         self._time = 0
         self._colourPairsDictionary = {}
+        self._jigsaw = jigsaw
     # def constructMatrix(self):
     #     if self._version == 0:
     #         self._constructMatrixHome()
@@ -65,16 +67,28 @@ class ExactCoverConverter:
             for c in range(self._boardPiece.columns()):
                 # For each position in the board, check what piece might fit.
                 for piece in self._pieces:
-
                     # Check rotations.
                     numRotations = piece.getRotations()
                     for _ in range(numRotations):
+                        # if piece.orderNum() == 2 and r == 0 and c == 6:
+                        #     piece.showColour()
+                        #     print(piece.getGrid())
+                        #     plt.imshow(self._colourMap)
+                        #     plt.axis('off')  # Turn off axis labels
+                        #     plt.show()
+
                         pypyRow = []
                         if self._checkOptimised(r, c, piece, pypyRow):
                             pypyRow.append(boardSize - 1 + piece.orderNum())
                             self._pypyRows.append(pypyRow)
+                            # print("Bitch worked here btw: ", piece.orderNum(), r, c)
+                            # piece.showColour()
                         # Rotate piece.
                         piece.rotatePiece()
+                        # if piece.orderNum() == 2 and r == 0 and c == 6:
+                        #     piece.showColour()
+                        #     print(piece.getGrid())
+
 
     def _checkOptimised(self, row, col, piece, pypyRow):
         if row + piece.rows() - 1 >= self._boardPiece.rows() or (
@@ -84,8 +98,24 @@ class ExactCoverConverter:
             for c in range(col, col + piece.columns()):
                 self._debugChecks += 1
                 timeIn = timer()
-                #TODO: pre-calculate if colours are similar in the similar colours. If the pair is recognised skip the computation and give the recorded output.
-                if self._colouring and (piece.pixelAt(r - row, c - col) != 0 and
+                # HERE
+                # I changed piece.getColour in the similarColours to try for each cell if jigsaw enabled.
+                # print(len(piece.getColourGrid()), len(piece.getColourGrid()[0]))
+                # print(len(piece.getGrid()), len(piece.getGrid()[0]))
+                print(r, c, r - row, c - col)
+                if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 2 and
+                                        not similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary)):
+                    # print("tried and not worked: ", piece.orderNum(), r - row, c - col, r, c)
+                    # print(piece.getColourAt(r - row, c - col))
+                    # print(self._colourMap[r][c])
+                    # plt.imshow(fmm)
+                    # plt.axis('off')  # Turn off axis labels
+                    # plt.show()
+                    timeOut = timer()
+                    self._time += timeOut - timeIn
+                    return False
+                # print("sa moara mata")
+                if self._colouring and not self._jigsaw and (piece.pixelAt(r - row, c - col) != 0 and
                                         not similarColours(piece.getColour(), self._colourMap[r][c], self._colourPairsDictionary)):
                     timeOut = timer()
                     self._time += timeOut - timeIn

@@ -126,9 +126,9 @@ class Contour:
         # Prepare the region on the target image where the shape will be placed
         targetRegion = targetImg[targetY:targetY+height, targetX:targetX+width]
 
-        print("Rotated Shape: ", rotatedShape.shape)
-        print("Rotated Mask: ", rotatedMask.shape)
-        print("Target Region: ", targetRegion.shape)
+        # print("Rotated Shape: ", rotatedShape.shape)
+        # print("Rotated Mask: ", rotatedMask.shape)
+        # print("Target Region: ", targetRegion.shape)
 
         # Mask out the area in the target image
         targetRegionMasked = cv2.bitwise_and(targetRegion, targetRegion, mask=cv2.bitwise_not(rotatedMask))

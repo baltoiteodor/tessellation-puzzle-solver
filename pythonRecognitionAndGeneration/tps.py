@@ -178,6 +178,13 @@ def main():
                 plt.show()
             else:
                 printJigsaw(puzzleSolver.getOutput(), puzzleSolver.getDictPieces(), originalImage)
+                rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
+
+                # Display the RGB array using Matplotlib
+                plt.imshow(rgbArray)
+                plt.axis('off')  # Turn off axis labels
+                plt.show()
+
         print("Puzzle is solvable.")
     else:
         print("Something is or went wrong with the puzzle.")

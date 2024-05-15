@@ -5,7 +5,7 @@ from timeit import default_timer as timer
 
 from misc.piece import Piece
 from misc.contour import *
-from puzzle_solver.helper import trimGrid, findClosestContourPoint
+from puzzle_solver.helper import trimGrid, findClosestContourPoint, resizeToDimensions
 import numpy as np
 
 MAXSIZE = 1024
@@ -31,6 +31,41 @@ def colourCenteredAt(image, center):
             num += 1
 
     return r // num, g // num, b // num
+
+def fillTwos(grid):
+    # print("GRRR: ", grid)
+    r = len(grid)
+    c = len(grid[0])
+    ti = 0
+    tj = 0
+    ok = False
+    for i in range(r):
+        if ok:
+            break
+        for j in range(c):
+            if grid[i][j] == 2:
+                ti = i
+                tj = j
+                ok = True
+                break
+
+    # print(ti, tj)
+    ti += 1
+    tj += 1
+
+    # ti, tj is now the middle 2, compute the other 2 2s.
+
+    ti -= 1
+    tj += 1
+    if grid[ti][tj] == 1:
+        grid[ti][tj] = 2
+
+    ti += 2
+    tj -= 2
+    if grid[ti][tj] == 1:
+        grid[ti][tj] = 2
+
+    return grid
 
 
 class Processor:
@@ -163,6 +198,12 @@ class Processor:
             print("Trying to find a good unit length for the grids of the jigsaw pieces...")
             print("Looking for the smallest edge in the contours for a starting value.")
 
+
+        # Calculate the over-blurred image.
+        image = self._contours[0].getImage()
+        # blurredImage = cv.GaussianBlur(image, (45, 45), 0)
+        # cv.imwrite("bluuuuur.png", blurredImage)
+
         maxArea = 0
         for contour in self._contours:
             if contour.getArea() > maxArea:
@@ -181,6 +222,39 @@ class Processor:
 
         print("UnitLen: ", unitLen)
         print("Max ", maxArea)
+        # boardScaler = (unitLen * unitLen * 9 * rows * columns) / maxArea
+        targetW = unitLen * 3 * columns
+        targetH = unitLen * 3 * rows
+        for i, contour in enumerate(self._contours):
+            if contour.getArea() == maxArea:
+                newCont, newImg = resizeToDimensions(image, contour.getContour(), targetW, targetH)
+                self._contours[i] = Contour(newCont, newImg, 0)
+                maxArea = self._contours[i].getArea()
+            else:
+                x, y, w, h = contour.getBoundingRect()
+                topLeft = (x, y)
+                leftJig = findClosestContourPoint(contour.getOriginalContour(), np.array(topLeft))
+                topRight = (x + w, y)
+                rightJig = findClosestContourPoint(contour.getOriginalContour(), np.array(topRight))
+                pieceW = rightJig[0] - leftJig[0]
+                accUnit = pieceW / 3
+                scalerW = unitLen / accUnit
+
+                botLeft = (x, y + h)
+                leftBotJig = findClosestContourPoint(contour.getOriginalContour(), np.array(botLeft))
+                pieceH = leftBotJig[1] - leftJig[1]
+                accUnit = pieceH / 3
+                scalerH = unitLen / accUnit
+                print("For contour ", i)
+                print(scalerW, scalerH)
+
+                targetPieceW = int(w * scalerW)
+                targetPieceH = int(h * scalerH)
+                newCont, newImg = resizeToDimensions(image, contour.getContour(), targetPieceW, targetPieceH)
+                self._contours[i] = Contour(newCont, newImg, 0)
+
+
+        # print("hmhmh Scale jigsaw: ", boardScaler)
         # TODO: add the board piece separately.
         # Will trim this grid after matching with piece.
         for contour in self._contours:
@@ -220,9 +294,10 @@ class Processor:
             if contour.getArea() == maxArea:
                 grid = np.ones((3 * rows, 3 * columns))
                 noOnes = 9 * rows * columns
+                gridX += unitLen
+                gridY += unitLen
             else:
                 grid = np.zeros((6, 6))
-
                 for row in range(6):
                     for col in range(6):
                         centreX = gridX + row * unitLen + unitLen / 2
@@ -231,20 +306,35 @@ class Processor:
                         # For this centre of the cell we can check if it is inside the contour and deem
                         # if we place a 1 in the grid.
                         centreUnit = (int(centreX), int(centreY))
+                        # print("centres: ", centreUnit)
                         isIn = cv.pointPolygonTest(contour.getContour(), centreUnit, False)
+                        # print(isIn)
                         if isIn >= 0:
-                            # Mark this unit as 1 in the grid.
+                            # print("Should be this: ", col, row)
+                            # Mark this unit as 1 in the grid or 2 if it is on the X.
                             grid[col][row] = 1
+                            if row == col:
+                                grid[col][row] = 2
                             noOnes += 1
                         else:
                             grid[col][row] = 0
 
             grid = grid.astype(int)
+            copyGrid = grid
             # Remove borderline zeroes.
             grid = trimGrid(grid)
+            grid = fillTwos(grid)
             print("For piece this is the grid ", grid)
             newPiece: Piece = Piece(contour, grid, contour.getColour(), unitLen, (gridX, gridY))
             newPiece.canBeBoard(noOnes == newPiece.area(), self._jigsawMode)
+
+            image = contour.getImage()
+            blurredImage = cv.GaussianBlur(image, (45, 45), 0)
+
+            newPiece.computeColourGrid(blurredImage, copyGrid)
+            # if contour.getArea() == maxArea:
+            #     newPiece.showColour()
+            # print("COLOURS: ", newPiece.getColourGrid())
             self._pieces.append(newPiece)
             # Show the image
             # cv.imshow('Contour with Closest Point', img)
