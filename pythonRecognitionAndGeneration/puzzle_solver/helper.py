@@ -359,7 +359,13 @@ def placeAndRotateContour(contour, angle, original_img, target_img, nextTopLeft)
     placement_x = nextTopLeft[0] + (topLeftRect[0] - topLeftCorner[0])
     placement_y = nextTopLeft[1] + (topLeftRect[1] - topLeftCorner[1])
 
+    placement_x = max(placement_x, 0)
+    placement_y = max(placement_y, 0)
+    # print("Pl: ", placement_x, placement_y)
+    # print("added to this: ", rotated_img.shape[1], rotated_img.shape[0])
+    # print("Will be inverted in target area.")
     target_area = target_img[placement_y:placement_y + rotated_img.shape[0], placement_x:placement_x + rotated_img.shape[1]]
+    # print("targetArea: ", (target_area.shape[1], target_area.shape[0]))
     mask_resized = cv2.resize(rotated_mask, (target_area.shape[1], target_area.shape[0]))
 
     target_region_masked = cv2.bitwise_and(target_area, target_area, mask=cv2.bitwise_not(mask_resized))

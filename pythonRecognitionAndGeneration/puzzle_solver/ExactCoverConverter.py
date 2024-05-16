@@ -27,6 +27,9 @@ class ExactCoverConverter:
         self._time = 0
         self._colourPairsDictionary = {}
         self._jigsaw = jigsaw
+        self._availablePositionsPerPiece = {}
+        for piece in pieces:
+            self._availablePositionsPerPiece[piece.orderNum()] = []
     # def constructMatrix(self):
     #     if self._version == 0:
     #         self._constructMatrixHome()
@@ -69,8 +72,8 @@ class ExactCoverConverter:
                 for piece in self._pieces:
                     # Check rotations.
                     numRotations = piece.getRotations()
-                    for _ in range(numRotations):
-                        # if piece.orderNum() == 2 and r == 0 and c == 6:
+                    for rot in range(numRotations):
+                        # if piece.orderNum() == 6 and r == 0 and c == 9:
                         #     piece.showColour()
                         #     print(piece.getGrid())
                         #     plt.imshow(self._colourMap)
@@ -81,11 +84,13 @@ class ExactCoverConverter:
                         if self._checkOptimised(r, c, piece, pypyRow):
                             pypyRow.append(boardSize - 1 + piece.orderNum())
                             self._pypyRows.append(pypyRow)
-                            # print("Bitch worked here btw: ", piece.orderNum(), r, c)
-                            # piece.showColour()
+                            self._availablePositionsPerPiece[piece.orderNum()].append((r, c, rot))
+                            # if piece.orderNum() == 6 and r == 0 and c == 9:
+                            #     print("Bitch worked here btw: ", piece.orderNum(), r, c)
+                            #     piece.showColour()
                         # Rotate piece.
                         piece.rotatePiece()
-                        # if piece.orderNum() == 2 and r == 0 and c == 6:
+                        # if piece.orderNum() == 6 and r == 0 and c == 9:
                         #     piece.showColour()
                         #     print(piece.getGrid())
 
@@ -94,6 +99,8 @@ class ExactCoverConverter:
         if row + piece.rows() - 1 >= self._boardPiece.rows() or (
                 col + piece.columns() - 1 >= self._boardPiece.columns()):
             return False
+        # For jigsaw check if more than 2 out of 5 cells are wrong to return false.
+        faulty = 0
         for r in range(row, row + piece.rows()):
             for c in range(col, col + piece.columns()):
                 self._debugChecks += 1
@@ -102,7 +109,7 @@ class ExactCoverConverter:
                 # I changed piece.getColour in the similarColours to try for each cell if jigsaw enabled.
                 # print(len(piece.getColourGrid()), len(piece.getColourGrid()[0]))
                 # print(len(piece.getGrid()), len(piece.getGrid()[0]))
-                print(r, c, r - row, c - col)
+                # print(r, c, r - row, c - col, piece.pixelAt(r - row, c - col) == 2, similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary))
                 if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 2 and
                                         not similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary)):
                     # print("tried and not worked: ", piece.orderNum(), r - row, c - col, r, c)
@@ -113,16 +120,22 @@ class ExactCoverConverter:
                     # plt.show()
                     timeOut = timer()
                     self._time += timeOut - timeIn
-                    return False
+                    faulty += 1
+                    # return False
                 # print("sa moara mata")
                 if self._colouring and not self._jigsaw and (piece.pixelAt(r - row, c - col) != 0 and
                                         not similarColours(piece.getColour(), self._colourMap[r][c], self._colourPairsDictionary)):
                     timeOut = timer()
                     self._time += timeOut - timeIn
                     return False
+                # print("si tactu")
                 if piece.pixelAt(r - row, c - col):
                     pypyRow.append(r * self._boardPiece.columns() + c)
 
+        if self._jigsaw:
+            # print(faulty)
+            if faulty >= 2:
+                return False
         return True
 
     def PyPyMatrixNotOptimised(self, boardSize, width):
@@ -166,6 +179,8 @@ class ExactCoverConverter:
             print(f"Debug checks: {self._debugChecks}.")
             print("Columns: ", self._pypyColumns)
             print("Time spent colour checking: ", self._time)
+            for piece in self._pieces:
+                print(f"Available for piece {piece.orderNum()}: ", self._availablePositionsPerPiece[piece.orderNum()])
             # print(f"These rows be for pypy bro: {len(self._pypyRows)}", self._pypyRows)
             return
 

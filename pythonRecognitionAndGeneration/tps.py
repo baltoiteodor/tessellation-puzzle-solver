@@ -52,6 +52,13 @@ def main():
     argsParser.add_argument("-jigsaw", "--jigsaw", action="store_true", required=False,
                             help="Specify that the input puzzle is a basic jigsaw puzzle. Expect a possibly faulty solution to the problem :).")
 
+
+    # Rows and columns number of pieces for jigsaw.
+    argsParser.add_argument("-r", "--rows", required=False,
+                            help="Jigsaw pieces per column.")
+    argsParser.add_argument("-c", "--columns", required=False,
+                            help="Jigsaw pieces per row.")
+
     # Parse the arguments.
     args = vars(argsParser.parse_args())
 
@@ -75,6 +82,9 @@ def main():
 
     realProc = args["3D"]
     jigsaw = args["jigsaw"]
+    rows = int(args["rows"])
+    columns = int(args["columns"])
+    print(rows, columns)
     # Testing preproc:
     prep = PreProcessor(copyImage)
     if realProc:
@@ -145,7 +155,7 @@ def main():
     # Look for the biggest l s.t. the area lost in the process is less than a given percent.
     processor = Processor(rotatedContours, processorLog | allLog, jigsaw)
     if jigsaw:
-        processor.findGridsJigsaw()
+        processor.findGridsJigsaw(rows, columns)
     else:
         processor.findGrids()
     pieces = processor.getPieces()

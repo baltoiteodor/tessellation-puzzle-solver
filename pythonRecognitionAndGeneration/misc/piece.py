@@ -184,10 +184,10 @@ class Piece:
                     # Find 4 other important points that are also inside the contour to average out.
                     dx = []
                     dy = []
-                    for px in range(30):
-                        for py in range(30):
-                            dx.append(px - 15)
-                            dy.append(py - 15)
+                    for px in range(40):
+                        for py in range(40):
+                            dx.append(px - 20)
+                            dy.append(py - 20)
                     # dx = [-10, 0, 10, 0, 5, 5, 0, -5, -5, 0]
                     # dy = [0, 10, 0, -10, 0, 5, 5,  0, -5, -5]
                     points = []
@@ -205,7 +205,7 @@ class Piece:
                     # plt.imshow(labColours)
                     # plt.axis('off')  # Turn off axis labels
                     # plt.show()
-                    meanLAB = np.median(labColours, axis=0)[0]
+                    meanLAB = np.mean(labColours, axis=0)[0]
                     meanLAB = np.uint8([[meanLAB]])
                     # plt.imshow(meanLAB)
                     # plt.axis('off')  # Turn off axis labels

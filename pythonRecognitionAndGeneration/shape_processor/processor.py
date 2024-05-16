@@ -188,7 +188,7 @@ class Processor:
             print("----------------------------")
             print("---")
 
-    def findGridsJigsaw(self):
+    def findGridsJigsaw(self, rows, columns):
         # Declare a dictionary from contours to their minimum rectangle for future use
         # Find the smallest edge first, this will be a potential candidate for the unit length.
 
@@ -213,8 +213,6 @@ class Processor:
         for contour in self._contours:
             if contour.getArea() != maxArea:
                 piecesArea += contour.getArea()
-        rows = 3
-        columns = 4
         print(piecesArea)
         a = piecesArea / (9 * rows * columns)
         print(a)
