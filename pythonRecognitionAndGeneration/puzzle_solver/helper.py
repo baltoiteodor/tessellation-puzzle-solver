@@ -13,7 +13,7 @@ def patch_asscalar(a):
 
 setattr(np, "asscalar", patch_asscalar)
 
-COLOURTHRESHOLD = 25
+COLOURTHRESHOLD = 20
 
 def resizeToDimensions(image, contour, target_width, target_height):
     # Convert the contour to a numpy array if it isn't already

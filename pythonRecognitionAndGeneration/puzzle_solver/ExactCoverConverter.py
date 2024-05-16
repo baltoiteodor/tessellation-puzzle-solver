@@ -6,8 +6,9 @@ from misc.piece import Piece
 from puzzle_solver.helper import similarColours, similarColoursJigsaw
 from timeit import default_timer as timer
 import matplotlib.pyplot as plt
+import cv2
 
-
+FAULTYNUM = 1
 class ExactCoverConverter:
     def __init__(self, board: Piece, pieces, colourMap, version, colour, jigsaw):
         # Board will be the biggest piece filled with 1s. We shape the matrix w.r.t it.
@@ -26,6 +27,8 @@ class ExactCoverConverter:
         self._debugChecks = 0
         self._time = 0
         self._colourPairsDictionary = {}
+        # For jigsaw:
+        self._jigsawTwosBoard = np.zeros((board.rows(), board.columns()))
         self._jigsaw = jigsaw
         self._availablePositionsPerPiece = {}
         for piece in pieces:
@@ -54,7 +57,17 @@ class ExactCoverConverter:
             for i in range(self._boardPiece.rows()):
                 for j in range(self._boardPiece.columns()):
                     self._pypyColumns.append("r" + str(i) + "c" + str(j))
-
+                    if self._jigsaw:
+                        # Draw the Twos matrix, a.k.a where the X shape of each piece can go.
+                        if i % 3 == 0:
+                            if j % 3 == 0 or j % 3 == 2:
+                                self._jigsawTwosBoard[i][j] = 2
+                        elif i % 3 == 1 and j % 3 == 1:
+                            self._jigsawTwosBoard[i][j] = 2
+                        elif i % 3 == 2:
+                            if j % 3 == 0 or j % 3 == 2:
+                                self._jigsawTwosBoard[i][j] = 2
+            print("Tuturuuuu: ", self._jigsawTwosBoard)
             for i in range(piecesNum):
                 self._pypyColumns.append("P" + str(i + 1))
 
@@ -65,6 +78,7 @@ class ExactCoverConverter:
 
         return width
 
+    # TODO: pieces can only go in certain spaces, no point in trying 1, 1 as example for a corner.
     def PyPyMatrixOptimised(self, boardSize, width):
         for r in range(self._boardPiece.rows()):
             for c in range(self._boardPiece.columns()):
@@ -73,9 +87,10 @@ class ExactCoverConverter:
                     # Check rotations.
                     numRotations = piece.getRotations()
                     for rot in range(numRotations):
-                        # if piece.orderNum() == 6 and r == 0 and c == 9:
+                        # if piece.orderNum() == 1:
                         #     piece.showColour()
                         #     print(piece.getGrid())
+                        #     cv2.imwrite("ok.png", piece.getOriginalContour().getImage())
                         #     plt.imshow(self._colourMap)
                         #     plt.axis('off')  # Turn off axis labels
                         #     plt.show()
@@ -104,13 +119,15 @@ class ExactCoverConverter:
         for r in range(row, row + piece.rows()):
             for c in range(col, col + piece.columns()):
                 self._debugChecks += 1
+                if self._jigsaw and piece.pixelAt(r - row, c - col) == 1 and self._jigsawTwosBoard[r][c] == 2:
+                    return False
                 timeIn = timer()
-                # HERE
+            # HERE
                 # I changed piece.getColour in the similarColours to try for each cell if jigsaw enabled.
                 # print(len(piece.getColourGrid()), len(piece.getColourGrid()[0]))
                 # print(len(piece.getGrid()), len(piece.getGrid()[0]))
                 # print(r, c, r - row, c - col, piece.pixelAt(r - row, c - col) == 2, similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary))
-                if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 2 and
+                if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 2 and self._jigsawTwosBoard[r][c] == 2 and
                                         not similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary)):
                     # print("tried and not worked: ", piece.orderNum(), r - row, c - col, r, c)
                     # print(piece.getColourAt(r - row, c - col))
@@ -134,7 +151,7 @@ class ExactCoverConverter:
 
         if self._jigsaw:
             # print(faulty)
-            if faulty >= 2:
+            if faulty > FAULTYNUM:
                 return False
         return True
 
@@ -181,7 +198,7 @@ class ExactCoverConverter:
             print("Time spent colour checking: ", self._time)
             for piece in self._pieces:
                 print(f"Available for piece {piece.orderNum()}: ", self._availablePositionsPerPiece[piece.orderNum()])
-            # print(f"These rows be for pypy bro: {len(self._pypyRows)}", self._pypyRows)
+            print(f"These rows be for pypy bro: {len(self._pypyRows)}")
             return
 
         # print("Matrix before constructing dancing links.")

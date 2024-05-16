@@ -184,10 +184,10 @@ class Piece:
                     # Find 4 other important points that are also inside the contour to average out.
                     dx = []
                     dy = []
-                    for px in range(40):
-                        for py in range(40):
-                            dx.append(px - 20)
-                            dy.append(py - 20)
+                    for px in range(unit - 4):
+                        for py in range(unit - 4):
+                            dx.append(px - int(unit / 2) + 2)
+                            dy.append(py - int(unit / 2) + 2)
                     # dx = [-10, 0, 10, 0, 5, 5, 0, -5, -5, 0]
                     # dy = [0, 10, 0, -10, 0, 5, 5,  0, -5, -5]
                     points = []
