@@ -4,7 +4,14 @@ from misc.contour import Contour
 from misc.types import *
 import cv2
 import matplotlib.pyplot as plt
+from colormath.color_conversions import convert_color
+from colormath.color_objects import sRGBColor, LabColor
+from colormath.color_diff import delta_e_cie2000
 
+COLOURTHRESHOLDX = 20
+COLOURTHRESHOLDTHUMB = 45
+FAULTYNUMX = 1
+FAULTYNUMTHUMB = 0
 def trimColourGrid(grid):
     # Convert the list of lists to a NumPy array for easier manipulation
     grid = np.array(grid)
@@ -30,6 +37,19 @@ def trimColourGrid(grid):
 
     return grid
 
+def similarColours(colour1, colour2, COLOURTHRESHOLD):
+    # print(colour1)
+    # print(colour2)
+    colour1 = tuple(colour1)
+    colour2 = tuple(colour2)
+
+    lab1 = convert_color(sRGBColor(colour1[2], colour1[1], colour1[0]), LabColor)
+    lab2 = convert_color(sRGBColor(colour2[2], colour2[1], colour2[0]), LabColor)
+    # lab1 = LabColor(colour1[0], colour1[1], colour1[2])
+    # lab2 = LabColor(colour2[0], colour2[1], colour2[2])
+    distance = delta_e_cie2000(lab1, lab2)
+    ans = distance < COLOURTHRESHOLD
+    return ans
 
 def similarGrids(grid1, grid2):
     if (len(grid1) != len(grid2)) or (len(grid1[0]) != len(grid2[0])):
@@ -40,6 +60,29 @@ def similarGrids(grid1, grid2):
             if (grid1[r][c] == 0 and grid2[r][c] != 0) or (grid1[r][c] != 0 and grid2[r][c] == 0):
                 return False
     return True
+
+def similarColourGrids(grid, gridC1, gridC2):
+    # plt.imshow(gridC1)
+    # plt.axis('off')  # Turn off axis labels
+    # plt.show()
+    # plt.imshow(gridC2)
+    # plt.axis('off')  # Turn off axis labels
+    # plt.show()
+    faulty = 0
+    faultyThumb = 0
+    if (len(gridC1) != len(gridC2)) or (len(gridC1[0]) != len(gridC2[0])):
+        return False
+    for r in range(len(grid)):
+        for c in range(len(grid[0])):
+            if grid[r][c] == 2 and not similarColours(gridC1[r][c], gridC2[r][c], COLOURTHRESHOLDX):
+                faulty += 1
+            if grid[r][c] == 1 and not similarColours(gridC1[r][c], gridC2[r][c], COLOURTHRESHOLDTHUMB):
+                faultyThumb += 1
+    if faulty > FAULTYNUMX or faultyThumb > FAULTYNUMTHUMB:
+        return False
+    return True
+
+
 
 class Piece:
     _numRows: int = 0
@@ -145,19 +188,37 @@ class Piece:
 
     def rotatePiece(self):
         # Set board to next rotation in line from the array of grids.
+        # if self.orderNum() == 2:
+        #     plt.imshow(self._allColourGrids[0])
+        #     plt.axis('off')  # Turn off axis labels
+        #     plt.show()
         self._currentRotation += 1
         if self._currentRotation == self._numRotations:
             self._currentRotation = 0
 
         self.setGrid(self._allGrids[self._currentRotation])
-        self._setColourGrid(self._allColourGrids[self._currentRotation])
+        if len(self._allColourGrids):
+            self._setColourGrid(self._allColourGrids[self._currentRotation])
         self.setRowsNum(len(self._grid))
         self.setColsNum(len(self._grid[0]))
 
-    def retrieveAngle(self, grid):
+    def retrieveAngle(self, grid, colourGrid):
+        # TODO: CHCK COLOUR ASW.
+        print("lenAllGrids: ", len(self._allGrids))
+        cv2.imwrite(f"wth{self.orderNum()}.png", self._originalContour.getImage())
+        if self.orderNum() == 5:
+            print("mortimati?")
+            plt.imshow(self._allColourGrids[0])
+            plt.axis('off')  # Turn off axis labels
+            plt.show()
+        for i, currGrid in enumerate(self._allGrids):
+            if similarGrids(grid, currGrid) and similarColourGrids(currGrid, self._allColourGrids[i], colourGrid):
+                return i * 90
+
         for i, currGrid in enumerate(self._allGrids):
             if similarGrids(grid, currGrid):
                 return i * 90
+
         return 0
 
     def computeColourGrid(self, blurredImage, copyGrid):
@@ -233,7 +294,7 @@ class Piece:
         # Rotate this bad boy 3 more times and add to allColourGrids.
 
         # Uncomment this if want to see how colours of pieces look. Okish for testing, might look weird bcuz of LAB.
-        # plt.imshow(self._colourGrid)
+        # plt.imshow(self._allColourGrids[0])
         # plt.axis('off')  # Turn off axis labels
         # plt.show()
         # pass

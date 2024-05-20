@@ -1,32 +1,4 @@
-"C:\Program Files\JetBrains\CLion 2023.2.2\bin\cmake\win\x64\bin\cmake.exe" -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_MAKE_PROGRAM=C:/Program Files/JetBrains/CLion 2023.2.2/bin/ninja/win/x64/ninja.exe" "-DCMAKE_C_COMPILER=C:/Program Files/JetBrains/CLion 2023.2.2/bin/mingw/bin/gcc.exe" "-DCMAKE_CXX_COMPILER=C:/Program Files/JetBrains/CLion 2023.2.2/bin/mingw/bin/g++.exe" -G Ninja -S "C:\Users\balto\OneDrive\Desktop\ICL Computing\final project\tpsC++" -B "C:\Users\balto\OneDrive\Desktop\ICL Computing\final project\tpsC++\cmake-build-debug"
--- pybind11 v2.13.0 dev1
--- pybind11::lto disabled (problems with undefined symbols for MinGW for now)
--- pybind11::thin_lto disabled (problems with undefined symbols for MinGW for now)
--- Configuring done (0.4s)
-You have changed variables that require your cache to be deleted.
-Configure will be re-run and you may have to reset some variables.
-The following variables have changed:
-CMAKE_C_COMPILER= C:/Program Files/JetBrains/CLion 2023.2.2/bin/mingw/bin/gcc.exe
-CMAKE_CXX_COMPILER= C:/Program Files/JetBrains/CLion 2023.2.2/bin/mingw/bin/g++.exe
-CMAKE_CXX_COMPILER= C:/Program Files/JetBrains/CLion 2023.2.2/bin/mingw/bin/g++.exe
+Cannot generate into C:\Users\balto\OneDrive\Desktop\ICL Computing\final project\tessellation-puzzle-solver\cmake-build-debug
+It is already used for project C:\Users\balto\OneDrive\Desktop\ICL Computing\final project\tpsC++
 
--- The C compiler identification is GNU 11.2.0
--- The CXX compiler identification is GNU 11.2.0
--- Detecting C compiler ABI info
--- Detecting C compiler ABI info - done
--- Check for working C compiler: C:/MinGW/bin/gcc.exe - skipped
--- Detecting C compile features
--- Detecting C compile features - done
--- Detecting CXX compiler ABI info
--- Detecting CXX compiler ABI info - done
--- Check for working CXX compiler: C:/MinGW/bin/g++.exe - skipped
--- Detecting CXX compile features
--- Detecting CXX compile features - done
--- pybind11 v2.13.0 dev1
--- Found PythonInterp: C:/Users/balto/AppData/Local/Microsoft/WindowsApps/python3.exe (found suitable version "3.9.13", minimum required is "3.6") 
--- Found PythonLibs: C:/Program Files/WindowsApps/PythonSoftwareFoundation.Python.3.9_3.9.3568.0_x64__qbz5n2kfra8p0/libs/python39.lib
--- pybind11::lto disabled (problems with undefined symbols for MinGW for now)
--- pybind11::thin_lto disabled (problems with undefined symbols for MinGW for now)
--- Configuring done (1.4s)
--- Generating done (0.0s)
--- Build files have been written to: C:/Users/balto/OneDrive/Desktop/ICL Computing/final project/tpsC++/cmake-build-debug
+Please either delete it manually or select another generation directory

@@ -52,6 +52,9 @@ def main():
     argsParser.add_argument("-jigsaw", "--jigsaw", action="store_true", required=False,
                             help="Specify that the input puzzle is a basic jigsaw puzzle. Expect a possibly faulty solution to the problem :).")
 
+    # Disable scaling in tessellation mode.
+    argsParser.add_argument("-noScaling", "--noScaling", action="store_true", required=False,
+                            help="Specify that the input tessellation board is 1:1 with the pieces.")
 
     # Rows and columns number of pieces for jigsaw.
     argsParser.add_argument("-r", "--rows", required=False,
@@ -82,9 +85,11 @@ def main():
 
     realProc = args["3D"]
     jigsaw = args["jigsaw"]
-    rows = int(args["rows"])
-    columns = int(args["columns"])
-    print(rows, columns)
+    if args["rows"] is not None:
+        rows = int(args["rows"])
+    if args["columns"] is not None:
+        columns = int(args["columns"])
+    # print(rows, columns)
     # Testing preproc:
     prep = PreProcessor(copyImage)
     if realProc:
@@ -175,7 +180,11 @@ def main():
     if args["DLX"] is not None:
         dlx = int(args["DLX"])
 
-    puzzleSolver = Solver(solverLog | allLog, originalImage, bkt, dlx, colour, cpp, jigsaw)
+    nonScale = False
+    if args["noScaling"] is not None:
+        nonScale = True
+
+    puzzleSolver = Solver(solverLog | allLog, originalImage, bkt, dlx, colour, cpp, jigsaw, nonScale)
 
     if puzzleSolver.solveBackTracking(pieces):
         if show:
@@ -187,7 +196,7 @@ def main():
                 plt.axis('off')  # Turn off axis labels
                 plt.show()
             else:
-                printJigsaw(puzzleSolver.getOutput(), puzzleSolver.getDictPieces(), originalImage)
+                printJigsaw(puzzleSolver.getOutput(), puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap())
                 rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
 
                 # Display the RGB array using Matplotlib

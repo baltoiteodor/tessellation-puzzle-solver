@@ -13,7 +13,10 @@ def patch_asscalar(a):
 
 setattr(np, "asscalar", patch_asscalar)
 
-COLOURTHRESHOLD = 20
+# COLOURTHRESHOLD = 20
+
+# Try so of the X cells is less than COLOURTHRESHOLD and their sum is less than COLOURSUMTHRESHOLD.
+# COLOURSUMTHRESHOLD = 60
 
 def resizeToDimensions(image, contour, target_width, target_height):
     # Convert the contour to a numpy array if it isn't already
@@ -202,15 +205,18 @@ def findClosestPointOnMask(mask, target_point):
 # 2nd argument: dictionary from index of piece to the corresponding piece.
 # Construct the image solution of the puzzle.
 
-def retrieveShape(outputMatrix, pieceId, row, col):
+def retrieveShape(outputMatrix, pieceId, row, col, colourMap):
     shape = np.zeros_like(outputMatrix)
-    fill(outputMatrix, pieceId, row, col, shape, len(outputMatrix), len(outputMatrix[0]))
+    pieceColours = [[(0, 0, 0) for _ in range(len(outputMatrix[0]))] for _ in range(len(outputMatrix))]
+    fill(outputMatrix, pieceId, row, col, shape, len(outputMatrix), len(outputMatrix[0]), pieceColours, colourMap)
     shape = trimGrid(shape)
-    return shape
+    colours = trimColourGrid(pieceColours)
+    return shape, colours
 
-def fill(outputMatrix, pieceId, row, col, shape, lenRows, lenCols):
+def fill(outputMatrix, pieceId, row, col, shape, lenRows, lenCols, pieceColours, colourMap):
     if outputMatrix[row][col] == pieceId:
         shape[row][col] = 1
+        pieceColours[row][col] = colourMap[row][col]
         outputMatrix[row][col] = 0
         dx = [-1, -1, -1, 0, 1, 1, 1, 0]
         dy = [-1, 0, 1, 1, 1, 0, -1, -1]
@@ -218,7 +224,7 @@ def fill(outputMatrix, pieceId, row, col, shape, lenRows, lenCols):
             rowx = row + dx[idx]
             colx = col + dy[idx]
             if insideMatrix(rowx, colx, lenRows, lenCols):
-                fill(outputMatrix, pieceId, rowx, colx, shape, lenRows, lenCols)
+                fill(outputMatrix, pieceId, rowx, colx, shape, lenRows, lenCols, pieceColours, colourMap)
 
 def insideMatrix(r, c, n, m):
     return 0 <= r < n and 0 <= c < m
@@ -383,7 +389,7 @@ def getNextRow(outputMatrix, row):
         if outputMatrix[r][0] != 0:
             return r
     return -1
-def printJigsaw(outputMatrix, dictToPieces, originalImage):
+def printJigsaw(outputMatrix, dictToPieces, originalImage, colourMap):
 
     solutionImage = np.zeros(originalImage.shape, dtype=np.uint8)
     nextTopLeft = np.array((0, 0))
@@ -405,10 +411,15 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage):
                 #     return
                 pieceId = outputMatrix[row][col]
                 # Fill shape of piece in the output matrix.
-                pieceShape = retrieveShape(outputMatrix, pieceId, row, col)
+                # TODO: retrieve the colour map of the shape as well.
+                pieceShape, pieceColourGrid = retrieveShape(outputMatrix, pieceId, row, col, colourMap)
                 print("Here is a piece shape extracted: ", pieceShape)
                 currentPiece = dictToPieces[pieceId]
-                angle = currentPiece.retrieveAngle(pieceShape)
+                if pieceId == 5:
+                    plt.imshow(pieceColourGrid)
+                    plt.axis('off')  # Turn off axis labels
+                    plt.show()
+                angle = currentPiece.retrieveAngle(pieceShape, pieceColourGrid)
                 print("Angle: ", angle)
                 print("Current piece and stuff: ", pieceId, row, col, nextTopLeft)
                 piecesDone[pieceId] = True
@@ -556,7 +567,7 @@ def similarColours(colour1, colour2, dict):
     dict[pairRev] = ans
     return ans
 
-def similarColoursJigsaw(colour1, colour2, dict):
+def similarColoursJigsaw(colour1, colour2, dict, COLOURTHRESHOLD):
     # print(colour1)
     # print(colour2)
     colour1 = tuple(colour1)
@@ -564,7 +575,7 @@ def similarColoursJigsaw(colour1, colour2, dict):
     pair = (colour1, colour2)
     pairRev = (colour2, colour1)
     if pair in dict:
-        return dict[pair]
+        return dict[pair] < COLOURTHRESHOLD
 
     lab1 = convert_color(sRGBColor(colour1[2], colour1[1], colour1[0]), LabColor)
     lab2 = convert_color(sRGBColor(colour2[2], colour2[1], colour2[0]), LabColor)
@@ -572,6 +583,6 @@ def similarColoursJigsaw(colour1, colour2, dict):
     # lab2 = LabColor(colour2[0], colour2[1], colour2[2])
     distance = delta_e_cie2000(lab1, lab2)
     ans = distance < COLOURTHRESHOLD
-    dict[pair] = ans
-    dict[pairRev] = ans
+    dict[pair] = distance
+    dict[pairRev] = distance
     return ans

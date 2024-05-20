@@ -8,7 +8,11 @@ from timeit import default_timer as timer
 import matplotlib.pyplot as plt
 import cv2
 
-FAULTYNUM = 1
+FAULTYNUMX = 1
+FAULTYNUMTHUMB = 0
+COLOURTHRESHOLDX = 20
+COLOURTHRESHOLDTHUMB = 45
+# COLOURSUMTHRESHOLD = 100
 class ExactCoverConverter:
     def __init__(self, board: Piece, pieces, colourMap, version, colour, jigsaw):
         # Board will be the biggest piece filled with 1s. We shape the matrix w.r.t it.
@@ -116,19 +120,27 @@ class ExactCoverConverter:
             return False
         # For jigsaw check if more than 2 out of 5 cells are wrong to return false.
         faulty = 0
+        faultyThumbs = 0
+        # colourDist = 0
         for r in range(row, row + piece.rows()):
             for c in range(col, col + piece.columns()):
                 self._debugChecks += 1
+
+                # Rule out cases where Piece is in an unfeasible location.
                 if self._jigsaw and piece.pixelAt(r - row, c - col) == 1 and self._jigsawTwosBoard[r][c] == 2:
                     return False
+
                 timeIn = timer()
-            # HERE
-                # I changed piece.getColour in the similarColours to try for each cell if jigsaw enabled.
-                # print(len(piece.getColourGrid()), len(piece.getColourGrid()[0]))
-                # print(len(piece.getGrid()), len(piece.getGrid()[0]))
+
+                # If jigsaw and we deal with a thumb.
+                if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 1 and self._jigsawTwosBoard[r][c] == 0 and
+                                                         not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDTHUMB))):
+                    timeOut = timer()
+                    self._time += timeOut - timeIn
+                    faultyThumbs += 1
                 # print(r, c, r - row, c - col, piece.pixelAt(r - row, c - col) == 2, similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary))
                 if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 2 and self._jigsawTwosBoard[r][c] == 2 and
-                                        not similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary)):
+                                        not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDX))):
                     # print("tried and not worked: ", piece.orderNum(), r - row, c - col, r, c)
                     # print(piece.getColourAt(r - row, c - col))
                     # print(self._colourMap[r][c])
@@ -149,10 +161,12 @@ class ExactCoverConverter:
                 if piece.pixelAt(r - row, c - col):
                     pypyRow.append(r * self._boardPiece.columns() + c)
 
+                # colourDist += similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary)
         if self._jigsaw:
             # print(faulty)
-            if faulty > FAULTYNUM:
+            if faulty > FAULTYNUMX or faultyThumbs > FAULTYNUMTHUMB:
                 return False
+                # or colourDist > COLOURSUMTHRESHOLD):
         return True
 
     def PyPyMatrixNotOptimised(self, boardSize, width):

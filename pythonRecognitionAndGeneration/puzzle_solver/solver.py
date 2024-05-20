@@ -9,7 +9,7 @@ import numpy as np
 import cv2
 
 class Solver:
-    def __init__(self, logger: bool, image, bkt: int, dlx: int, colour: bool, cpp: bool, jigsaw: bool):
+    def __init__(self, logger: bool, image, bkt: int, dlx: int, colour: bool, cpp: bool, jigsaw: bool, scalingDisabled: bool):
         self._logger = logger
         self._startTime = self._endTime = 0
         self._solution = None
@@ -24,6 +24,8 @@ class Solver:
         self._jigsaw = jigsaw
         self._dictIndexToPiece = {}
         self._colourMap = []
+        self._nonScaling = scalingDisabled
+        self._boardPiece = None
 
     # The solve method will take as input an array of 2d arrays representing puzzle pieces and try to solve the puzzle.
     def solveBackTracking(self, pieces: Pieces):
@@ -55,6 +57,12 @@ class Solver:
             scaler = np.sqrt(piecesArea / boardArea)
             # print(scaler)
             scaler = roundScaler(scaler)
+            if self._nonScaling:
+                # In this case we are not allowed to scale:
+                if scaler != 1:
+                    print("The puzzle cannot be solved as the area of the pieces and the area of the board do not correspond.")
+                    return False
+
             if self._logger:
                 print("Scaler: ", scaler)
 
@@ -63,6 +71,7 @@ class Solver:
                 verdict, boardPiece = scalePiece(boardPiece, scaler, self._image)
 
             if verdict == False:
+                print("Scaling the board makes the puzzle unsolvable.")
                 return False
 
         print("Board Piece: ", boardPiece)
@@ -79,7 +88,7 @@ class Solver:
             # plt.imshow(self._colourMap)
             # plt.axis('off')  # Turn off axis labels
             # plt.show()
-
+        self._boardPiece = boardPiece
         # Remember colours of pieces.
         piecesColour = [pc.getColour() for pc in pieces]
         # We will start the bkt from empty board.
@@ -324,3 +333,9 @@ class Solver:
 
     def getOutput(self):
         return self._output
+
+    def getBoardPiece(self):
+        return self._boardPiece
+
+    def getColourMap(self):
+        return self._colourMap

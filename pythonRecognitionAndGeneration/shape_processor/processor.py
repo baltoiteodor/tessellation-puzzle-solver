@@ -227,6 +227,7 @@ class Processor:
             if contour.getArea() == maxArea:
                 newCont, newImg = resizeToDimensions(image, contour.getContour(), targetW, targetH)
                 self._contours[i] = Contour(newCont, newImg, 0)
+                cv.imwrite(f"debuggingScalingPieces/contour{i}.png", newImg)
                 maxArea = self._contours[i].getArea()
             else:
                 x, y, w, h = contour.getBoundingRect()
@@ -249,6 +250,7 @@ class Processor:
                 targetPieceW = int(w * scalerW)
                 targetPieceH = int(h * scalerH)
                 newCont, newImg = resizeToDimensions(image, contour.getContour(), targetPieceW, targetPieceH)
+                cv.imwrite(f"debuggingScalingPieces/contour{i}.png", newImg)
                 self._contours[i] = Contour(newCont, newImg, 0)
 
 
