@@ -10,6 +10,7 @@ import cv2
 
 FAULTYNUMX = 1
 FAULTYNUMTHUMB = 0
+FAULTYNUMHOLES = 1
 COLOURTHRESHOLDX = 20
 COLOURTHRESHOLDTHUMB = 45
 # COLOURSUMTHRESHOLD = 100
@@ -121,6 +122,7 @@ class ExactCoverConverter:
         # For jigsaw check if more than 2 out of 5 cells are wrong to return false.
         faulty = 0
         faultyThumbs = 0
+        faultyHoles = 0
         # colourDist = 0
         for r in range(row, row + piece.rows()):
             for c in range(col, col + piece.columns()):
@@ -132,6 +134,13 @@ class ExactCoverConverter:
 
                 timeIn = timer()
 
+                # If jigsaw and we deal with a hole.
+                if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 0 and self._jigsawTwosBoard[r][c] == 0 and piece.getColourAt(r - row, c - col) != (0, 0, 0) and
+                                                         not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDTHUMB))):
+                    timeOut = timer()
+                    self._time += timeOut - timeIn
+                    faultyHoles += 1
+                    print("This happened: ", piece.orderNum(), piece.getColourAt(r - row, c - col), r - row, c - col)
                 # If jigsaw and we deal with a thumb.
                 if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 1 and self._jigsawTwosBoard[r][c] == 0 and
                                                          not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDTHUMB))):
@@ -164,7 +173,7 @@ class ExactCoverConverter:
                 # colourDist += similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary)
         if self._jigsaw:
             # print(faulty)
-            if faulty > FAULTYNUMX or faultyThumbs > FAULTYNUMTHUMB:
+            if faulty > FAULTYNUMX or faultyThumbs > FAULTYNUMTHUMB or faultyHoles > FAULTYNUMHOLES:
                 return False
                 # or colourDist > COLOURSUMTHRESHOLD):
         return True

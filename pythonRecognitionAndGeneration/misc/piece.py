@@ -232,7 +232,10 @@ class Piece:
         # print("top: ", self._topLeft)
         for i in range(len(copyGrid)):
             for j in range(len(copyGrid[0])):
-                if copyGrid[i][j] > 0:
+                zeroChecker = False
+                if copyGrid[i][j] == 0:
+                    zeroChecker = True
+                if copyGrid[i][j] >= 0:
                     # print(i, j)
                     # Already in y, x format the grid.
                     topY = gridY + i * unit
@@ -256,27 +259,32 @@ class Piece:
                     for mm in range(len(dx)):
                         points.append((centreX + dx[mm], centreY + dy[mm]))
                     insidePoints = [pt for pt in points if cv2.pointPolygonTest(self._originalContour.getContour(), pt, False) > 0]
-                    # print("Inside: ", insidePoints)
-                    cv2.imwrite("cema.png", blurredImage)
-                    colours = [blurredImage[int(y)][int(x)] for (x, y) in insidePoints]
-                    colours = np.array(colours, dtype=np.uint8).reshape(-1, 1, 3)
-                    # print("Check  this: ", colours)
-                    labColours = cv2.cvtColor(colours, cv2.COLOR_BGR2Lab)
-                    # print(labColours)
-                    # plt.imshow(labColours)
-                    # plt.axis('off')  # Turn off axis labels
-                    # plt.show()
-                    meanLAB = np.mean(labColours, axis=0)[0]
-                    meanLAB = np.uint8([[meanLAB]])
-                    # plt.imshow(meanLAB)
-                    # plt.axis('off')  # Turn off axis labels
-                    # plt.show()
+                    numberPoints = len(insidePoints)
+                    if zeroChecker:
+                        # At least 20% shd be inside to count for colour matching.
+                        if numberPoints > unit * unit / 5:
+                            zeroChecker = False
+                    if not zeroChecker:
+                        # print("Inside: ", insidePoints)
+                        colours = [blurredImage[int(y)][int(x)] for (x, y) in insidePoints]
+                        colours = np.array(colours, dtype=np.uint8).reshape(-1, 1, 3)
+                        # print("Check  this: ", colours)
+                        labColours = cv2.cvtColor(colours, cv2.COLOR_BGR2Lab)
+                        # print(labColours)
+                        # plt.imshow(labColours)
+                        # plt.axis('off')  # Turn off axis labels
+                        # plt.show()
+                        meanLAB = np.mean(labColours, axis=0)[0]
+                        meanLAB = np.uint8([[meanLAB]])
+                        # plt.imshow(meanLAB)
+                        # plt.axis('off')  # Turn off axis labels
+                        # plt.show()
 
-                    # meanRGB = np.mean(colours, axis=0).astype(np.uint8)[0]
-                    # meanRGB = np.uint8(meanRGB])
-                    # print(meanRGB)
-                    meanRGB = cv2.cvtColor(meanLAB, cv2.COLOR_Lab2BGR)[0][0]
-                    self._colourGrid[i][j] = meanRGB
+                        # meanRGB = np.mean(colours, axis=0).astype(np.uint8)[0]
+                        # meanRGB = np.uint8(meanRGB])
+                        # print(meanRGB)
+                        meanRGB = cv2.cvtColor(meanLAB, cv2.COLOR_Lab2BGR)[0][0]
+                        self._colourGrid[i][j] = meanRGB
         self._colourGrid = trimColourGrid(self._colourGrid)
         self._allColourGrids.append(self._colourGrid)
         rows = len(self._colourGrid)
