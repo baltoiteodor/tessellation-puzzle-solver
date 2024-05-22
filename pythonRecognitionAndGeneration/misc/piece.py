@@ -203,14 +203,13 @@ class Piece:
         self.setColsNum(len(self._grid[0]))
 
     def retrieveAngle(self, grid, colourGrid):
-        # TODO: CHCK COLOUR ASW.
-        print("lenAllGrids: ", len(self._allGrids))
+        # print("lenAllGrids: ", len(self._allGrids))
         cv2.imwrite(f"wth{self.orderNum()}.png", self._originalContour.getImage())
-        if self.orderNum() == 5:
-            print("mortimati?")
-            plt.imshow(self._allColourGrids[0])
-            plt.axis('off')  # Turn off axis labels
-            plt.show()
+        # if self.orderNum() == 5:
+        #     print("mortimati?")
+        #     plt.imshow(self._allColourGrids[0])
+        #     plt.axis('off')  # Turn off axis labels
+        #     plt.show()
         for i, currGrid in enumerate(self._allGrids):
             if similarGrids(grid, currGrid) and similarColourGrids(currGrid, self._allColourGrids[i], colourGrid):
                 return i * 90

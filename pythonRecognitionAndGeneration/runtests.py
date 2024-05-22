@@ -2,7 +2,7 @@ import os
 import subprocess
 
 # Path to the folder containing examples
-folder_path = "images\\test"
+folder_path = "images/test_low_num"
 
 # List all files in the folder
 example_files = os.listdir(folder_path)

@@ -80,6 +80,11 @@ class Processor:
     def findGrids(self):
         # Declare a dictionary from contours to their minimum rectangle for future use
         # Find the smallest edge first, this will be a potential candidate for the unit length.
+        contour_image_smt = np.zeros((780, 780, 3), dtype = np.uint8)
+
+        for contour in self._contours:
+            cv.drawContours(contour_image_smt, contour.getOriginalContour(), -1, (0, 255, 0), 2)
+        cv.imwrite('contoursBeforeProc.png', contour_image_smt)
 
         if self._logger:
             self._startTime = timer()
@@ -167,7 +172,9 @@ class Processor:
                 grid = grid.astype(int)
                 # Remove borderline zeroes.
                 grid = trimGrid(grid)
-
+                if len(grid) == 0:
+                    error = 1
+                    break
                 newPiece: Piece = Piece(c, grid, c.getColour(), unitLen, (topLeftX, topLeftY))
                 newPiece.canBeBoard(noOnes == newPiece.area(), self._jigsawMode)
                 self._pieces.append(newPiece)

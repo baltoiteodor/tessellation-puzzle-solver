@@ -26,6 +26,8 @@ class Solver:
         self._colourMap = []
         self._nonScaling = scalingDisabled
         self._boardPiece = None
+        # For jigsaw mode, all possible solutions to the puzzle.
+        self._allSolutions = []
 
     # The solve method will take as input an array of 2d arrays representing puzzle pieces and try to solve the puzzle.
     def solveBackTracking(self, pieces: Pieces):
@@ -280,12 +282,14 @@ class Solver:
         # rows = [[0, 3, 6], [0, 3], [3, 4, 6], [2, 4, 5], [1, 2, 5, 6], [1, 6]]
         timeIn = timer()
         selected = dlxcpplinker.solveDLXCPP(rows, width)
-        # print(rows)
-        # Construct outputMatrix.
-        boardSize = boardPiece.rows() * boardPiece.columns()
         if selected is None or len(selected) == 0:
             return False
-        for row in selected:
+
+        # if not self._jigsaw:
+        #     selected = selected[0]
+        # Construct first general outputMatrix.
+        boardSize = boardPiece.rows() * boardPiece.columns()
+        for row in selected[0]:
             # For each selected row, place it in the output matrix.
             chosenPiece = rows[row][-1] - boardSize + 1
             for element in rows[row][:-1]:
@@ -299,6 +303,18 @@ class Solver:
         if self._logger:
             prettyPrintGrid(outputMatrix)
 
+        # If in jigsaw mode, construct all output matrices.
+        if self._jigsaw:
+            for select in selected:
+                currSol = emptyBoard(boardPiece.rows(), boardPiece.columns())
+                for row in select:
+                    # For each selected row, place it in the output matrix.
+                    chosenPiece = rows[row][-1] - boardSize + 1
+                    for element in rows[row][:-1]:
+                        r = int(element / boardPiece.columns())
+                        c = element % boardPiece.columns()
+                        currSol[r][c] = chosenPiece
+                self._allSolutions.append(currSol)
         return True
 
     def _pickRangeOptimiser(self, piece):
@@ -339,3 +355,6 @@ class Solver:
 
     def getColourMap(self):
         return self._colourMap
+
+    def getAllSolutions(self):
+        return self._allSolutions

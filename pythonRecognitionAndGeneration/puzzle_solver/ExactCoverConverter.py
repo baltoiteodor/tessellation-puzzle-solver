@@ -8,12 +8,19 @@ from timeit import default_timer as timer
 import matplotlib.pyplot as plt
 import cv2
 
+# 1
 FAULTYNUMX = 1
-FAULTYNUMTHUMB = 0
+# 0
+FAULTYNUMTHUMB = 1
+# 1
 FAULTYNUMHOLES = 1
-COLOURTHRESHOLDX = 20
+# 20
+COLOURTHRESHOLDX = 30
+# 45
 COLOURTHRESHOLDTHUMB = 45
-# COLOURSUMTHRESHOLD = 100
+# 30
+COLOURTHRESHOLDHOLE = 40
+
 class ExactCoverConverter:
     def __init__(self, board: Piece, pieces, colourMap, version, colour, jigsaw):
         # Board will be the biggest piece filled with 1s. We shape the matrix w.r.t it.
@@ -72,7 +79,7 @@ class ExactCoverConverter:
                         elif i % 3 == 2:
                             if j % 3 == 0 or j % 3 == 2:
                                 self._jigsawTwosBoard[i][j] = 2
-            print("Tuturuuuu: ", self._jigsawTwosBoard)
+            # print("Tuturuuuu: ", self._jigsawTwosBoard)
             for i in range(piecesNum):
                 self._pypyColumns.append("P" + str(i + 1))
 
@@ -135,12 +142,13 @@ class ExactCoverConverter:
                 timeIn = timer()
 
                 # If jigsaw and we deal with a hole.
-                if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 0 and self._jigsawTwosBoard[r][c] == 0 and piece.getColourAt(r - row, c - col) != (0, 0, 0) and
-                                                         not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDTHUMB))):
+                # print(piece.getColourAt(r - row, c - col))
+                if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 0 and self._jigsawTwosBoard[r][c] == 0 and not np.array_equal(piece.getColourAt(r - row, c - col), [0, 0, 0])
+                                                         and not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDHOLE))):
                     timeOut = timer()
                     self._time += timeOut - timeIn
                     faultyHoles += 1
-                    print("This happened: ", piece.orderNum(), piece.getColourAt(r - row, c - col), r - row, c - col)
+                    # print("This happened: ", piece.orderNum(), piece.getColourAt(r - row, c - col), r - row, c - col)
                 # If jigsaw and we deal with a thumb.
                 if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 1 and self._jigsawTwosBoard[r][c] == 0 and
                                                          not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDTHUMB))):

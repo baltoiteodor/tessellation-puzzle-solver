@@ -6,6 +6,11 @@ from colormath.color_diff import delta_e_cie2000
 
 from misc.piece import *
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from PIL import Image
+import imagehash
+from skimage.metrics import structural_similarity as ssim
+
 
 def patch_asscalar(a):
     return a.item()
@@ -13,7 +18,8 @@ def patch_asscalar(a):
 
 setattr(np, "asscalar", patch_asscalar)
 
-# COLOURTHRESHOLD = 20
+COLOURTHRESHOLD = 20
+
 
 # Try so of the X cells is less than COLOURTHRESHOLD and their sum is less than COLOURSUMTHRESHOLD.
 # COLOURSUMTHRESHOLD = 60
@@ -36,7 +42,7 @@ def resizeToDimensions(image, contour, target_width, target_height):
     )).astype(np.int32)
 
     # Extract the region of interest (ROI) from the original image using the bounding box
-    roi = image[y:y+h, x:x+w]
+    roi = image[y:y + h, x:x + w]
     cv2.imwrite('Notscaled.png', roi)
 
     # Resize the ROI to the target dimensions
@@ -52,6 +58,7 @@ def resizeToDimensions(image, contour, target_width, target_height):
     # Save or return the scaled ROI with mask as an image
     cv2.imwrite('scaled.png', scaled_roi_with_mask)
     return scaled_contour, scaled_roi_with_mask
+
 
 def scalePiece(piece: Piece, scaleFactor, image):
     originalContour = piece.getOriginalContour().getContour()
@@ -69,17 +76,17 @@ def scalePiece(piece: Piece, scaleFactor, image):
     scaledContour = ((originalContournp - (x, y)) * scaleFactor).astype(np.int32)
 
     # Create a mask for the contour
-    mask = np.zeros_like(image[:,:,0])
+    mask = np.zeros_like(image[:, :, 0])
     cv2.drawContours(mask, [scaledContour], -1, (255), thickness=cv2.FILLED)
 
     # Extract the region of interest (ROI) from the original image using the bounding box
-    roi = image[y:y+h, x:x+w]
+    roi = image[y:y + h, x:x + w]
 
     # Resize the ROI using the scaled dimensions
     scaledRoi = cv2.resize(roi, (scaledW, scaledH), interpolation=cv2.INTER_LINEAR)
 
     # Create a mask for the scaled contour
-    scaledMask = np.zeros_like(scaledRoi[:,:,0])
+    scaledMask = np.zeros_like(scaledRoi[:, :, 0])
     cv2.drawContours(scaledMask, [scaledContour], -1, (255), thickness=cv2.FILLED)
 
     # Apply the scaled mask to the scaled ROI
@@ -150,20 +157,23 @@ def scalePiece(piece: Piece, scaleFactor, image):
     # Error is the maximum error per piece.
     error = abs(1 - coveredArea / pieceArea)
 
-
     if error > 0.05:
         return False, None
     return True, newPiece
 
+
 # Rounds to closest 0.05.
 def roundScaler(scaler):
     return round(scaler * 20) / 20
+
+
 def calculatePiecesArea(pieces: Pieces):
     area = 0.0
     for pc in pieces:
         area += pc.getOriginalContour().getArea()
 
     return area
+
 
 def findClosestContourPoint(contour, point):
     if contour.ndim == 2 and contour.shape[1] == 2:
@@ -186,13 +196,14 @@ def findClosestContourPoint(contour, point):
 
     return closest_point
 
+
 def findClosestPointOnMask(mask, target_point):
     # Get indices where the mask is non-zero (i.e., points belonging to the contour)
     y_indices, x_indices = np.nonzero(mask)
     contour_points = np.column_stack((x_indices, y_indices))
 
     # Calculate distances from each contour point to the target point
-    distances = np.sqrt((contour_points[:, 0] - target_point[0])**2 + (contour_points[:, 1] - target_point[1])**2)
+    distances = np.sqrt((contour_points[:, 0] - target_point[0]) ** 2 + (contour_points[:, 1] - target_point[1]) ** 2)
 
     # Get the index of the closest point
     closest_point_index = np.argmin(distances)
@@ -213,6 +224,7 @@ def retrieveShape(outputMatrix, pieceId, row, col, colourMap):
     colours = trimColourGrid(pieceColours)
     return shape, colours
 
+
 def fill(outputMatrix, pieceId, row, col, shape, lenRows, lenCols, pieceColours, colourMap):
     if outputMatrix[row][col] == pieceId:
         shape[row][col] = 1
@@ -226,8 +238,11 @@ def fill(outputMatrix, pieceId, row, col, shape, lenRows, lenCols, pieceColours,
             if insideMatrix(rowx, colx, lenRows, lenCols):
                 fill(outputMatrix, pieceId, rowx, colx, shape, lenRows, lenCols, pieceColours, colourMap)
 
+
 def insideMatrix(r, c, n, m):
     return 0 <= r < n and 0 <= c < m
+
+
 def printJigsawBad(outputMatrix, dictToPieces, originalImage):
     # Map pieces to their top left corner, as well as establish a relation between the corner and the top left of the
     # piece bounding rectangle.
@@ -264,7 +279,6 @@ def printJigsawBad(outputMatrix, dictToPieces, originalImage):
         #     window_name = f"Contour {idx}"
         #     cv2.imshow(window_name, img)
         #     cv2.waitKey(0)
-
 
         print("helo here: ", moveVectorPiece, moveVectorRect)
         # TODO: save this info.
@@ -311,7 +325,6 @@ def printJigsawBad(outputMatrix, dictToPieces, originalImage):
                 nextTopLeft += dictToMoveVectorsPiece[pieceId]
                 cv2.imwrite("progress.png", solutionImage)
 
-
     cv2.imwrite("progress.png", solutionImage)
 
 
@@ -330,14 +343,15 @@ def rotateImage(image, angle, center):
 
     return rotated_img
 
+
 def placeAndRotateContour(contour, angle, original_img, target_img, nextTopLeft):
     # Create a mask and extract the ROI
     mask = np.zeros(original_img.shape[:2], dtype=np.uint8)
     cv2.drawContours(mask, [contour], -1, 255, -1)
     x, y, w, h = cv2.boundingRect(contour)
     roi = cv2.bitwise_and(original_img, original_img, mask=mask)
-    extracted = roi[y:y+h, x:x+w]
-    mask_extracted = mask[y:y+h, x:x+w]
+    extracted = roi[y:y + h, x:x + w]
+    mask_extracted = mask[y:y + h, x:x + w]
     # print("Size mask: ", mask_extracted.shape)
     # cv2.imwrite(f"maPrior{angle}.png", mask_extracted)
 
@@ -370,27 +384,34 @@ def placeAndRotateContour(contour, angle, original_img, target_img, nextTopLeft)
     # print("Pl: ", placement_x, placement_y)
     # print("added to this: ", rotated_img.shape[1], rotated_img.shape[0])
     # print("Will be inverted in target area.")
-    target_area = target_img[placement_y:placement_y + rotated_img.shape[0], placement_x:placement_x + rotated_img.shape[1]]
+    target_area = target_img[placement_y:placement_y + rotated_img.shape[0],
+                  placement_x:placement_x + rotated_img.shape[1]]
     # print("targetArea: ", (target_area.shape[1], target_area.shape[0]))
     mask_resized = cv2.resize(rotated_mask, (target_area.shape[1], target_area.shape[0]))
 
     target_region_masked = cv2.bitwise_and(target_area, target_area, mask=cv2.bitwise_not(mask_resized))
     final_region = cv2.add(target_region_masked, cv2.bitwise_and(rotated_img, rotated_img, mask=mask_resized))
 
-    target_img[placement_y:placement_y + rotated_img.shape[0], placement_x:placement_x + rotated_img.shape[1]] = final_region
+    target_img[placement_y:placement_y + rotated_img.shape[0],
+    placement_x:placement_x + rotated_img.shape[1]] = final_region
 
-    newNextTopLeft = (nextTopLeft[0] + (topRightCorner[0] - topLeftCorner[0]), nextTopLeft[1] + (topRightCorner[1] - topLeftCorner[1]))
-    newNextBotLeft = (nextTopLeft[0] + (botLeftCorner[0] - topLeftCorner[0]), nextTopLeft[1] + (botLeftCorner[1] - topLeftCorner[1]))
+    newNextTopLeft = (
+        nextTopLeft[0] + (topRightCorner[0] - topLeftCorner[0]),
+        nextTopLeft[1] + (topRightCorner[1] - topLeftCorner[1]))
+    newNextBotLeft = (
+        nextTopLeft[0] + (botLeftCorner[0] - topLeftCorner[0]), nextTopLeft[1] + (botLeftCorner[1] - topLeftCorner[1]))
 
     return newNextTopLeft, newNextBotLeft
+
 
 def getNextRow(outputMatrix, row):
     for r in range(row, len(outputMatrix)):
         if outputMatrix[r][0] != 0:
             return r
     return -1
-def printJigsaw(outputMatrix, dictToPieces, originalImage, colourMap):
 
+
+def printJigsaw(outputMatrix, dictToPieces, originalImage, colourMap, w, h, idx):
     solutionImage = np.zeros(originalImage.shape, dtype=np.uint8)
     nextTopLeft = np.array((0, 0))
     piecesDone = {}
@@ -413,49 +434,156 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage, colourMap):
                 # Fill shape of piece in the output matrix.
                 # TODO: retrieve the colour map of the shape as well.
                 pieceShape, pieceColourGrid = retrieveShape(outputMatrix, pieceId, row, col, colourMap)
-                print("Here is a piece shape extracted: ", pieceShape)
+                # print("Here is a piece shape extracted: ", pieceShape)
                 currentPiece = dictToPieces[pieceId]
-                if pieceId == 5:
-                    plt.imshow(pieceColourGrid)
-                    plt.axis('off')  # Turn off axis labels
-                    plt.show()
+                # if pieceId == 5:
+                #     plt.imshow(pieceColourGrid)
+                #     plt.axis('off')  # Turn off axis labels
+                #     plt.show()
                 angle = currentPiece.retrieveAngle(pieceShape, pieceColourGrid)
-                print("Angle: ", angle)
-                print("Current piece and stuff: ", pieceId, row, col, nextTopLeft)
+                # print("Angle: ", angle)
+                # print("Current piece and stuff: ", pieceId, row, col, nextTopLeft)
                 piecesDone[pieceId] = True
 
-                # TODO: Might want to do alat in a go, not separate, idt it s possible.
                 # Get the piece contour and rotate it at the desired angle.
                 currContour = currentPiece.getOriginalContour().getContour()
                 if beenThru == 0:
                     # print("HARO EVERYNIAN: ", row, nextTopLeft)
-                    nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle, currentPiece.getOriginalContour().getImage(), solutionImage, nextTopLeft)
+                    nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle,
+                                                                 currentPiece.getOriginalContour().getImage(),
+                                                                 solutionImage, nextTopLeft)
                 else:
                     # print("HARO EVERYNIAN: ", row, botLefts[currIndex])
-                    nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle, currentPiece.getOriginalContour().getImage(), solutionImage, botLefts[currIndex])
+                    nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle,
+                                                                 currentPiece.getOriginalContour().getImage(),
+                                                                 solutionImage, botLefts[currIndex])
                 # print("mm: ", nextTopLeft)
                 # print("mmBotLeft: ", botLeft)
                 botLefts[currIndex] = botLeft
                 currIndex += 1
         beenThru += 1
 
-    cv2.imwrite("progress.png", solutionImage)
+    solutionImage = solutionImage[:h, :w]
+    # cv2.imwrite(f"progress{idx}.png", solutionImage)
+    return solutionImage
+
+
+def computeHash(image):
+    image = Image.fromarray(image)
+    return imagehash.phash(image)
+
+
+def computeAllHashes(images):
+    def compute_hash(image):
+        return computeHash(image)
+
+    hashes = []
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(compute_hash, img) for img in images]
+        for future in as_completed(futures):
+            hash_value = future.result()
+            hashes.append(hash_value)
+
+    return hashes
+
+
+def findBestSolutionWithHashes(hashes, targetHash):
+    minDistance = float('inf')
+    mostSimilarIndex = None
+
+    for index, solutionHash in enumerate(hashes):
+        distance = targetHash - solutionHash
+        print("potential: ", distance)
+        if distance < minDistance:
+            minDistance = distance
+            mostSimilarIndex = index
+
+    return mostSimilarIndex, minDistance
+
+
+def computeSSIM(image1, image2):
+    gray_image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+    gray_image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+    score, _ = ssim(gray_image1, gray_image2, full=True)
+    return score
+
+
+def computeNCC(image1, image2):
+    gray_image1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+    gray_image2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+    result = cv2.matchTemplate(gray_image1, gray_image2, cv2.TM_CCORR_NORMED)
+    _, max_val, _, _ = cv2.minMaxLoc(result)
+    return max_val
+
+def findBestSolutionNCC(potential_solutions, target_image):
+    max_ncc = -float('inf')
+    most_similar_image = None
+
+    def compute_image_ncc(solution_image):
+        return computeNCC(solution_image, target_image)
+
+    with ThreadPoolExecutor() as executor:
+        futures = {executor.submit(compute_image_ncc, img): img for img in potential_solutions}
+        for future in as_completed(futures):
+            ncc_score = future.result()
+            solution_image = futures[future]
+            if ncc_score > max_ncc:
+                max_ncc = ncc_score
+                most_similar_image = solution_image
+
+    return most_similar_image, max_ncc
+
+def findBestSolutionSSIM(potential_solutions, target_image):
+    max_ssim = -float('inf')
+    most_similar_image = None
+
+    def compute_image_ssim(solution_image):
+        return computeSSIM(solution_image, target_image)
+
+    with ThreadPoolExecutor() as executor:
+        futures = {executor.submit(compute_image_ssim, img): img for img in potential_solutions}
+        for future in as_completed(futures):
+            ssim_score = future.result()
+            solution_image = futures[future]
+            if ssim_score > max_ssim:
+                max_ssim = ssim_score
+                most_similar_image = solution_image
+
+    return most_similar_image, max_ssim
+
+
+# No concurrency image differentiation.
+# TODO: use for testing.
+def find_most_similar_image(potential_solutions, target_image):
+    max_ssim = -float('inf')
+    most_similar_image = None
+
+    for solution_image in potential_solutions:
+        ssim_score = compute_ssim(solution_image, target_image)
+        if ssim_score > max_ssim:
+            max_ssim = ssim_score
+            most_similar_image = solution_image
+
+    return most_similar_image, max_ssim
+
 
 def trimGrid(grid):
     # Remove the last columns if all zero.
-    while np.all(grid[:, -1] == 0):
+    while grid.shape[1] > 0 and np.all(grid[:, -1] == 0):
         grid = grid[:, :-1]
     # Remove leading columns with all zeros
-    while np.all(grid[:, 0] == 0):
+    while grid.shape[1] > 0 and np.all(grid[:, 0] == 0):
         grid = grid[:, 1:]
     # Remove the last row if all zero.
-    while np.all(grid[-1, :] == 0):
+    while grid.shape[0] > 0 and np.all(grid[-1, :] == 0):
         grid = grid[:-1, :]
     # Remove leading rows with all zeros
-    while np.all(grid[0, :] == 0):
+    while grid.shape[0] > 0 and np.all(grid[0, :] == 0):
         grid = grid[1:, :]
 
     return grid
+
+
 def findBoard(pieces: Pieces):
     board = None
     maxSize = 0
@@ -493,6 +621,7 @@ def setPiece(currBoard: Board, board: Board, outputMatrix: Board,
 
 def rotatePiece(piece: Piece):
     piece.rotatePiece()
+
 
 def rotatePieceNonOptimal(piece: Piece):
     rotatedGrid = np.zeros((piece.columns(), piece.rows()), dtype=int)
@@ -566,6 +695,7 @@ def similarColours(colour1, colour2, dict):
     dict[pair] = ans
     dict[pairRev] = ans
     return ans
+
 
 def similarColoursJigsaw(colour1, colour2, dict, COLOURTHRESHOLD):
     # print(colour1)

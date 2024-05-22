@@ -7,6 +7,7 @@ import json
 import cv2
 import cv2 as cv
 import numpy as np
+from timeit import default_timer as timer
 
 from preprocessor.PreProcessor import PreProcessor
 from shape_finder.finder import ShapeFinder
@@ -180,10 +181,7 @@ def main():
     if args["DLX"] is not None:
         dlx = int(args["DLX"])
 
-    nonScale = False
-    if args["noScaling"] is not None:
-        nonScale = True
-
+    nonScale = args["noScaling"]
     puzzleSolver = Solver(solverLog | allLog, originalImage, bkt, dlx, colour, cpp, jigsaw, nonScale)
 
     if puzzleSolver.solveBackTracking(pieces):
@@ -196,7 +194,41 @@ def main():
                 plt.axis('off')  # Turn off axis labels
                 plt.show()
             else:
-                printJigsaw(puzzleSolver.getOutput(), puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap())
+                # print("Check this: ", puzzleSolver.getAllSolutions())
+                boardP = puzzleSolver.getBoardPiece()
+                cv.imwrite("boardP.png", boardP.getOriginalContour().getImage())
+                boardImg = boardP.getOriginalContour().getImage()
+                # targetHash = computeHash(boardImg)
+                h, w = boardImg.shape[:2]
+                solutions = puzzleSolver.getAllSolutions()
+                drawnSolutions = []
+                timeBeforePrint = timer()
+                for idx in range(len(solutions)):
+                    currSol = printJigsaw(solutions[idx], puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h, idx)
+                    drawnSolutions.append(currSol)
+                timeAfterPrint = timer()
+                timeTookPrint = timeAfterPrint - timeBeforePrint
+                print("time took printing: ", timeTookPrint)
+                # hashes = computeAllHashes(drawnSolutions)
+                # print("no way?: ", hashes)
+                #
+                # indexBest, d = findBestSolutionWithHashes(hashes, targetHash)
+                # print("which one?: ", indexBest)
+                # timeInSSIM = timer()
+                # bestImg, ssim = findBestSolutionSSIM(drawnSolutions, boardImg)
+                # timeOutSSIM = timer()
+                # timeSSIM = timeOutSSIM - timeInSSIM
+                print("Got here!")
+                timeInNCC = timer()
+                bestImg, ncc = findBestSolutionNCC(drawnSolutions, boardImg)
+                timeOutNCC = timer()
+                timeNCC = timeOutNCC - timeInNCC
+
+                # print("SSIM: ", timeSSIM)
+                print("NCC: ", timeNCC)
+                # cv.imwrite("iazima.png", drawnSolutions[indexBest])
+                cv.imwrite("iazima.png", bestImg)
+                printJigsaw(puzzleSolver.getOutput(), puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h,0)
                 rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
 
                 # Display the RGB array using Matplotlib

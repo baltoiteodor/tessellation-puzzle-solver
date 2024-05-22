@@ -206,13 +206,16 @@ class ShapeFinder:
             print("Entering ShapeFinder class, function detectShapes...")
 
         # Find contours and deal with them.
-        contours = cv.findContours(image, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-        contours = imutils.grab_contours(contours)
-
+        contoursP = cv.findContours(image, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+        contours = imutils.grab_contours(contoursP)
+        print()
         # what is going on?
-        contour_image = np.zeros_like(image)
-        cv.drawContours(contour_image, contours, -1, (0, 255, 0), 2)
+        contour_image = np.zeros_like(originalImage)
+        cv.drawContours(contour_image, contours, -1, (255, 255, 255), thickness = 1)
         cv.imwrite('contoursagain.jpg', contour_image)
+        # cv.imshow('Contours', contour_image)
+        # cv.waitKey(0)
+        # cv.destroyAllWindows()
 
         if self._logger:
             print("Contours have been found...")
@@ -240,9 +243,11 @@ class ShapeFinder:
             if self._logger:
                 print(f"Smoothed contour {i}: ", smooth_contour)
 
-        contour_image_smt = np.zeros_like(image)
-        cv.drawContours(contour_image_smt, smoothed_contours, -1, (0, 255, 0), 2)
+        contour_image_smt = np.zeros_like(originalImage)
+        cv.drawContours(contour_image_smt, smoothed_contours, -1, (255, 255, 255), thickness = 1)
         cv.imwrite('contoursagainsmoothed.jpg', contour_image_smt)
+        # cv.imshow('Contours', contour_image_smt)
+        # cv.waitKey(0)
 
         if self._logger:
             self._endTime = timer()
