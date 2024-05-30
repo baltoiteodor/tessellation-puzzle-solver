@@ -15,11 +15,11 @@ FAULTYNUMTHUMB = 1
 # 1
 FAULTYNUMHOLES = 1
 # 20
-COLOURTHRESHOLDX = 30
+COLOURTHRESHOLDX = 28
 # 45
-COLOURTHRESHOLDTHUMB = 45
+COLOURTHRESHOLDTHUMB = 42
 # 30
-COLOURTHRESHOLDHOLE = 40
+COLOURTHRESHOLDHOLE = 32
 
 class ExactCoverConverter:
     def __init__(self, board: Piece, pieces, colourMap, version, colour, jigsaw):
@@ -170,7 +170,7 @@ class ExactCoverConverter:
                     # return False
                 # print("sa moara mata")
                 if self._colouring and not self._jigsaw and (piece.pixelAt(r - row, c - col) != 0 and
-                                        not similarColours(piece.getColour(), self._colourMap[r][c], self._colourPairsDictionary)):
+                                        not similarColoursJigsaw(piece.getColour(), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDX)):
                     timeOut = timer()
                     self._time += timeOut - timeIn
                     return False

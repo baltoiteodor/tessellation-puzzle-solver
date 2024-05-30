@@ -87,9 +87,9 @@ class Solver:
             print(f"Puzzle Board:")
             print(board)
             print("Colour map for board:\n", self._colourMap)
-            # plt.imshow(self._colourMap)
-            # plt.axis('off')  # Turn off axis labels
-            # plt.show()
+            plt.imshow(self._colourMap)
+            plt.axis('off')  # Turn off axis labels
+            plt.show()
         self._boardPiece = boardPiece
         # Remember colours of pieces.
         piecesColour = [pc.getColour() for pc in pieces]
@@ -120,7 +120,6 @@ class Solver:
             self._solution = [[(0.0, 0.0, 0.0) for _ in range(boardPiece.columns())] for _ in range(boardPiece.rows())]
 
             print("Solution in the piece form: ")
-            # TODO: here there was a bug where it would just say it is solvable and put piece 0 everywhere. Revisit!
             prettyPrintGrid(outputMatrix)
             for i in range(boardPiece.rows()):
                 for j in range(boardPiece.columns()):
