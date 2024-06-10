@@ -13,9 +13,11 @@ class Rotator:
         self._logger = logger
         self._startTime = self._endTime = 0
 
+    def getTimeTaken(self):
+        return self._endTime - self._startTime
     def rotate(self, contours, image):
+        self._startTime = timer()
         if self._logger:
-            self._startTime = timer()
             print("Entering Rotator class...")
             print("Checking shapes if they need rotating...")
 
@@ -59,9 +61,8 @@ class Rotator:
                 # rotatedContours.append(Contour(rotatedContour, image, i))
 
         cv.imwrite("straight.jpg", rotatedImage)
-
+        self._endTime = timer()
         if self._logger:
-            self._endTime = timer()
             print(f"Exiting Rotator class: {self._endTime - self._startTime}...")
             print("---")
             print("----------------------------")

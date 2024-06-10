@@ -3,7 +3,7 @@
 # Specify desired arguments.
 import argparse
 import json
-
+import os
 import cv2
 import cv2 as cv
 import numpy as np
@@ -15,6 +15,7 @@ from shape_processor.processor import Processor
 from shape_rotation.rotator import Rotator
 from puzzle_solver.solver import Solver
 from puzzle_solver.helper import *
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import matplotlib.pyplot as plt
 
@@ -91,6 +92,13 @@ def main():
     if args["columns"] is not None:
         columns = int(args["columns"])
     # print(rows, columns)
+
+    #
+    ## Starting timer for the whole process.
+    #
+
+    timeStartProject = timer()
+
     # Testing preproc:
     prep = PreProcessor(copyImage)
     if realProc:
@@ -152,8 +160,8 @@ def main():
 
     # Rotate the images in the case they are at an angle.
     rotatedContours = contours
+    rotator = Rotator(rotatorLog | allLog)
     if not jigsaw:
-        rotator = Rotator(rotatorLog | allLog)
         rotatedContours = rotator.rotate(contours, originalImage)
 
     # Find the units in which to break the shapes.
@@ -190,25 +198,58 @@ def main():
                 rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
 
                 # Display the RGB array using Matplotlib
-                plt.imshow(rgbArray)
-                plt.axis('off')  # Turn off axis labels
-                plt.show()
+                # plt.imshow(rgbArray)
+                # plt.axis('off')  # Turn off axis labels
+                # plt.show()
+                # print(puzzleSolver.getOutput())
+                printTessellation(puzzleSolver.getOutput(), puzzleSolver.getDictPieces())
+
             else:
                 # print("Check this: ", puzzleSolver.getAllSolutions())
                 boardP = puzzleSolver.getBoardPiece()
-                cv.imwrite("boardP.png", boardP.getOriginalContour().getImage())
+                # cv.imwrite("boardP.png", boardP.getOriginalContour().getImage())
                 boardImg = boardP.getOriginalContour().getImage()
                 # targetHash = computeHash(boardImg)
                 h, w = boardImg.shape[:2]
                 solutions = puzzleSolver.getAllSolutions()
-                drawnSolutions = []
-                timeBeforePrint = timer()
-                for idx in range(len(solutions)):
-                    currSol = printJigsaw(solutions[idx], puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h, idx)
-                    drawnSolutions.append(currSol)
-                timeAfterPrint = timer()
-                timeTookPrint = timeAfterPrint - timeBeforePrint
-                print("time took printing: ", timeTookPrint)
+                colourDictionary = puzzleSolver.getColourDict()
+                # drawnSolutions = []
+                # timeBeforePrint = timer()
+                # timeTT = 0
+                # timeTTr = 0
+                # timeefff = 0
+
+                # for idx in range(len(solutions)):
+                #     currSol, timeTk, timfff, incr = printJigsawOptimised(solutions[idx], puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h, idx, rows, columns, colourDictionary)
+                    # timeTT += timeTk
+                    # timeTTr += timfff
+                    # timeefff += incr
+                    # drawnSolutions.append(currSol)
+                # timeAfterPrint = timer()
+                # timeTookPrint = timeAfterPrint - timeBeforePrint
+                # print("time took printing with no parallelism: ", timeTookPrint)
+                # print("TT: ", timeTT)
+                # print("TTf: ", timeTTr)
+                # print("incr: ", timeefff)
+                # print(solutions)
+                def generate_solution(idx):
+                    return printJigsawOptimised(solutions[idx], puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h, idx, rows, columns, colourDictionary)
+
+                # Parallelized code.
+                drawnSolutions_parallel = []
+                timeBeforePrint_parallel = timer()
+                with ThreadPoolExecutor() as executor:
+                    future_to_idx = {executor.submit(generate_solution, idx): idx for idx in range(len(solutions))}
+                    for future in as_completed(future_to_idx):
+                        drawnSolutions_parallel.append(future.result())
+                timeAfterPrint_parallel = timer()
+                timeTookPrint_parallel = timeAfterPrint_parallel - timeBeforePrint_parallel
+                print(f"Time taken with parallelism: {timeTookPrint_parallel} seconds")
+
+                # print(len(drawnSolutions) + " vs " + len(drawnSolutions_parallel))
+                # print("Here are some solutions from paralel: ")
+                # cv.imwrite("iazimaT0.png", drawnSolutions_parallel[0])
+                # cv.imwrite("iazimaT1.png", drawnSolutions_parallel[1])
                 # hashes = computeAllHashes(drawnSolutions)
                 # print("no way?: ", hashes)
                 #
@@ -220,15 +261,15 @@ def main():
                 # timeSSIM = timeOutSSIM - timeInSSIM
                 print("Got here!")
                 timeInNCC = timer()
-                bestImg, ncc = findBestSolutionNCC(drawnSolutions, boardImg)
+                bestImg, ncc = findBestSolutionNCC(drawnSolutions_parallel, boardImg)
                 timeOutNCC = timer()
                 timeNCC = timeOutNCC - timeInNCC
-
+                print(ncc)
                 # print("SSIM: ", timeSSIM)
                 print("NCC: ", timeNCC)
                 # cv.imwrite("iazima.png", drawnSolutions[indexBest])
                 cv.imwrite("iazima.png", bestImg)
-                printJigsaw(puzzleSolver.getOutput(), puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h,0)
+                # printJigsawOptimised(puzzleSolver.getOutput(), puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h,0, rows, columns)
                 rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
 
                 # Display the RGB array using Matplotlib
@@ -240,6 +281,45 @@ def main():
     else:
         print("Something is or went wrong with the puzzle.")
 
+    timeStopProject = timer()
+    timeTakenProject = timeStopProject - timeStartProject
+
+    #
+    ## Print statistics in corresponding file.
+    #
+
+    dir = 'Evaluation'
+    # subdirs = ['BKT', 'DLX', 'DLX-CPP']
+
+    baseName = os.path.splitext(os.path.basename(args['image']))[0]
+    fileName = baseName + '.txt'
+
+    if bkt >= 0:
+        dir = os.path.join(dir, 'BKT')
+    else:
+        if cpp:
+            dir = os.path.join(dir, 'DLX-CPP')
+        else:
+            dir = os.path.join(dir, 'DLX')
+
+    outputFile = os.path.join(dir, fileName)
+
+    timesTaken = [
+        {"label": "PreProcessing", "time": prep.getTimeTaken()},
+        {"label": "Contour Finding", "time": shapeFinder.getTimeTaken()},
+        {"label": "Rotating Pieces", "time": rotator.getTimeTaken()},
+        {"label": "Processing Pieces into Grids", "time": processor.getTimeTaken()},
+        {"label": "Solving the Puzzle", "time": puzzleSolver.getTimeTaken()},
+        {"label": "Total time", "time": timeTakenProject},
+    ]
+
+    try:
+        with open(outputFile, 'w') as file:
+            file.write("Label\tTime\n")
+            for entry in timesTaken:
+                file.write(f"{entry['label']}\t{entry['time']}\n")
+    except Exception as e:
+        print(f"An error occurred while writing to the file: {e}")
 
 if __name__ == '__main__':
     main()

@@ -4,6 +4,7 @@ from colormath.color_conversions import convert_color
 from colormath.color_objects import sRGBColor, LabColor
 from colormath.color_diff import delta_e_cie2000
 
+from PIL import Image, ImageDraw
 from misc.piece import *
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -11,6 +12,7 @@ from PIL import Image
 import imagehash
 from skimage.metrics import structural_similarity as ssim
 
+from timeit import default_timer as timer
 
 def patch_asscalar(a):
     return a.item()
@@ -280,7 +282,7 @@ def printJigsawBad(outputMatrix, dictToPieces, originalImage):
         #     cv2.imshow(window_name, img)
         #     cv2.waitKey(0)
 
-        print("helo here: ", moveVectorPiece, moveVectorRect)
+        # print("helo here: ", moveVectorPiece, moveVectorRect)
         # TODO: save this info.
         dictToLeftCorners[idx] = topLeftCorner
         dictToRightCorners[idx] = topRightCorner
@@ -313,11 +315,11 @@ def printJigsawBad(outputMatrix, dictToPieces, originalImage):
                 angle = currentPiece.retrieveAngle(pieceShape)
                 # print("Angle: ", angle)
                 # print("Current piece and stuff: ", pieceId, row, col, nextTopLeft)
-                print(dictToPieces[pieceId])
+                # print(dictToPieces[pieceId])
                 piecesDone[pieceId] = True
                 # corner = dictToCorners[pieceId]
                 targetLocation = nextTopLeft - dictToMoveVectorsRect[pieceId]
-                print("Target Location: ", targetLocation)
+                # print("Target Location: ", targetLocation)
                 currContour = currentPiece.getOriginalContour()
                 currContour.createROIAtAngle(targetLocation, solutionImage, angle)
                 # Calculate the new nextTopLeft somehow. Might be top right of the piece, aka the closest point
@@ -343,8 +345,7 @@ def rotateImage(image, angle, center):
 
     return rotated_img
 
-
-def placeAndRotateContour(contour, angle, original_img, target_img, nextTopLeft):
+def placeAndRotateContour(contour, angle, original_img, target_img, nextTopLeft, unit):
     # Create a mask and extract the ROI
     mask = np.zeros(original_img.shape[:2], dtype=np.uint8)
     cv2.drawContours(mask, [contour], -1, 255, -1)
@@ -368,9 +369,17 @@ def placeAndRotateContour(contour, angle, original_img, target_img, nextTopLeft)
     topRightRect = (max_y, min_x)
     botLeftRect = (min_y, max_x)
     # cv2.imwrite(f"ma{angle}.png", rotated_mask)
+    # timeIn = timer()
     topLeftCorner = findClosestPointOnMask(rotated_mask, np.array(topLeftRect))
-    topRightCorner = findClosestPointOnMask(rotated_mask, np.array(topRightRect))
-    botLeftCorner = findClosestPointOnMask(rotated_mask, np.array(botLeftRect))
+    # topRightCorner = findClosestPointOnMask(rotated_mask, np.array(topRightRect))
+    # botLeftCorner = findClosestPointOnMask(rotated_mask, np.array(botLeftRect))
+    # print(unit)
+    # print(topLeftCorner, topRightCorner, botLeftCorner)
+    topRightCorner = (topLeftCorner[0] + 3 * unit, topLeftCorner[1])
+    botLeftCorner = (topLeftCorner[0], topLeftCorner[1] + 3 * unit)
+    # print(topLeftCorner, topRightCorner, botLeftCorner)
+    # timeOut = timer()
+    # print("Times: ", timeOut - timeIn)
     # print("Current target: ", nextTopLeft)
     # print("offset", topLeftRect[0] - topLeftCorner[0], topLeftRect[1] - topLeftCorner[1])
     # print("Bounding: ", botLeftRect, topLeftRect, topRightRect)
@@ -410,8 +419,81 @@ def getNextRow(outputMatrix, row):
             return r
     return -1
 
+def placeAndRotateContourOptimised(contourObject, angle, original_img, target_img, nextTopLeft, unit):
+    # Create a mask and extract the ROI
+    mask = np.zeros(original_img.shape[:2], dtype=np.uint8)
+    contour = contourObject.getContour()
+    cv2.drawContours(mask, [contour], -1, 255, -1)
+    x, y, w, h = contourObject.getBoundingRect()
+    roi = cv2.bitwise_and(original_img, original_img, mask=mask)
+    extracted = roi[y:y + h, x:x + w]
+    mask_extracted = mask[y:y + h, x:x + w]
+    # print("Size mask: ", mask_extracted.shape)
+    # cv2.imwrite(f"maPrior{angle}.png", mask_extracted)
 
-def printJigsaw(outputMatrix, dictToPieces, originalImage, colourMap, w, h, idx):
+    center = (w // 2, h // 2)
+    rotated_img = rotateImage(extracted, angle, center)
+    rotated_mask = rotateImage(mask_extracted, angle, center)
+
+    # print("Size rot mask: ", rotated_mask.shape)
+    non_zero_points = np.column_stack(np.where(rotated_mask > 0))
+    min_x, min_y = non_zero_points.min(axis=0)
+
+    topLeftRect = (min_y, min_x)
+    topLeftCorner = findClosestPointOnMask(rotated_mask, np.array(topLeftRect))
+
+    placement_x = nextTopLeft[0] + (topLeftRect[0] - topLeftCorner[0])
+    placement_y = nextTopLeft[1] + (topLeftRect[1] - topLeftCorner[1])
+
+    placement_x = max(placement_x, 0)
+    placement_y = max(placement_y, 0)
+
+    target_area = target_img[placement_y:placement_y + rotated_img.shape[0],
+                  placement_x:placement_x + rotated_img.shape[1]]
+
+    mask_resized = cv2.resize(rotated_mask, (target_area.shape[1], target_area.shape[0]))
+
+    target_region_masked = cv2.bitwise_and(target_area, target_area, mask=cv2.bitwise_not(mask_resized))
+    final_region = cv2.add(target_region_masked, cv2.bitwise_and(rotated_img, rotated_img, mask=mask_resized))
+
+    target_img[placement_y:placement_y + rotated_img.shape[0],
+    placement_x:placement_x + rotated_img.shape[1]] = final_region
+
+    return
+def printJigsawOptimised(outputMatrix, dictToPieces, originalImage, colourMap, w, h, idx, rows, cols, colourDict):
+    solutionImage = np.zeros(originalImage.shape, dtype=np.uint8)
+    # In our case, we will have the same amount of pieces on each row, so we can store the botLefts and
+    # keep them for future topLefts.
+    # tt = 0
+    # ff = 0
+    # efff = 0
+    for row in range(rows):
+        for col in range(cols):
+            pieceId = outputMatrix[3 * row][3 * col]
+            # Fill shape of piece in the output matrix.
+            # timeIn = timer()
+            pieceShape, pieceColourGrid = retrieveShape(outputMatrix, pieceId, 3 * row, 3 * col, colourMap)
+            currentPiece = dictToPieces[pieceId]
+            unit = currentPiece.getUnitLen()
+            nextTopLeft = (col * 3 * unit, row * 3 * unit)
+            # timeOut = timer()
+            # ff = timeOut - timeIn
+            # af = timer()
+            angle = currentPiece.retrieveAngle(pieceShape, pieceColourGrid, colourDict)
+            # ef = timer()
+            # efff += ef - af
+            # Get the piece contour and rotate it at the desired angle.
+            currContour = currentPiece.getOriginalContour()
+            # timeIn = timer()
+            placeAndRotateContourOptimised(currContour, 360 - angle,
+                                    currentPiece.getOriginalContour().getImage(),
+                                    solutionImage, nextTopLeft, unit)
+            # timeOut = timer()
+            # tt += timeOut - timeIn
+    solutionImage = solutionImage[:h, :w]
+    return solutionImage
+
+def printJigsaw(outputMatrix, dictToPieces, originalImage, colourMap, w, h, idx, rows, cols, colourDict):
     solutionImage = np.zeros(originalImage.shape, dtype=np.uint8)
     nextTopLeft = np.array((0, 0))
     piecesDone = {}
@@ -432,15 +514,17 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage, colourMap, w, h, idx)
                 #     return
                 pieceId = outputMatrix[row][col]
                 # Fill shape of piece in the output matrix.
-                # TODO: retrieve the colour map of the shape as well.
                 pieceShape, pieceColourGrid = retrieveShape(outputMatrix, pieceId, row, col, colourMap)
                 # print("Here is a piece shape extracted: ", pieceShape)
                 currentPiece = dictToPieces[pieceId]
+                unit = currentPiece.getUnitLen()
                 # if pieceId == 5:
                 #     plt.imshow(pieceColourGrid)
                 #     plt.axis('off')  # Turn off axis labels
                 #     plt.show()
-                angle = currentPiece.retrieveAngle(pieceShape, pieceColourGrid)
+                angle = currentPiece.retrieveAngle(pieceShape, pieceColourGrid, colourDict)
+                # print(angle)
+                print(nextTopLeft, angle)
                 # print("Angle: ", angle)
                 # print("Current piece and stuff: ", pieceId, row, col, nextTopLeft)
                 piecesDone[pieceId] = True
@@ -451,12 +535,12 @@ def printJigsaw(outputMatrix, dictToPieces, originalImage, colourMap, w, h, idx)
                     # print("HARO EVERYNIAN: ", row, nextTopLeft)
                     nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle,
                                                                  currentPiece.getOriginalContour().getImage(),
-                                                                 solutionImage, nextTopLeft)
+                                                                 solutionImage, nextTopLeft, unit)
                 else:
                     # print("HARO EVERYNIAN: ", row, botLefts[currIndex])
                     nextTopLeft, botLeft = placeAndRotateContour(currContour, 360 - angle,
                                                                  currentPiece.getOriginalContour().getImage(),
-                                                                 solutionImage, botLefts[currIndex])
+                                                                 solutionImage, botLefts[currIndex], unit)
                 # print("mm: ", nextTopLeft)
                 # print("mmBotLeft: ", botLeft)
                 botLefts[currIndex] = botLeft
@@ -493,7 +577,7 @@ def findBestSolutionWithHashes(hashes, targetHash):
 
     for index, solutionHash in enumerate(hashes):
         distance = targetHash - solutionHash
-        print("potential: ", distance)
+        # print("potential: ", distance)
         if distance < minDistance:
             minDistance = distance
             mostSimilarIndex = index
@@ -527,6 +611,8 @@ def findBestSolutionNCC(potential_solutions, target_image):
         for future in as_completed(futures):
             ncc_score = future.result()
             solution_image = futures[future]
+            if ncc_score > 0.98:
+                return solution_image, ncc_score
             if ncc_score > max_ncc:
                 max_ncc = ncc_score
                 most_similar_image = solution_image
@@ -697,7 +783,7 @@ def similarColours(colour1, colour2, dict):
     return ans
 
 
-def similarColoursJigsaw(colour1, colour2, dict, COLOURTHRESHOLD):
+def similarColoursJigsaw(colour1, colour2, dict, ct):
     # print(colour1)
     # print(colour2)
     colour1 = tuple(colour1)
@@ -705,14 +791,100 @@ def similarColoursJigsaw(colour1, colour2, dict, COLOURTHRESHOLD):
     pair = (colour1, colour2)
     pairRev = (colour2, colour1)
     if pair in dict:
-        return dict[pair] < COLOURTHRESHOLD
+        return dict[pair] < ct
 
     lab1 = convert_color(sRGBColor(colour1[2], colour1[1], colour1[0]), LabColor)
     lab2 = convert_color(sRGBColor(colour2[2], colour2[1], colour2[0]), LabColor)
     # lab1 = LabColor(colour1[0], colour1[1], colour1[2])
     # lab2 = LabColor(colour2[0], colour2[1], colour2[2])
     distance = delta_e_cie2000(lab1, lab2)
-    ans = distance < COLOURTHRESHOLD
+    ans = distance < ct
     dict[pair] = distance
     dict[pairRev] = distance
     return ans
+
+
+def floodFill(matrix, x, y, pieceId, visited):
+
+    stack = [(x, y)]
+    points = []
+    while stack:
+        cx, cy = stack.pop()
+        if (cx, cy) in visited or not (0 <= cx < matrix.shape[1] and 0 <= cy < matrix.shape[0]):
+            continue
+        if matrix[cy, cx] != pieceId:
+            continue
+        visited.add((cx, cy))
+        points.append((cx, cy))
+        stack.extend([(cx + dx, cy + dy) for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]])
+    return points
+
+def drawPieceOutline(draw, colourMapping, pieceId, x, y, cellSize):
+    colour = colourMapping[pieceId].getColour()
+    if isinstance(colour, (tuple, list)):
+        colour = tuple(int(c) for c in colour)
+    elif isinstance(colour, float):
+        colour = int(colour)
+    rect = [x * cellSize, y * cellSize, (x + 1) * cellSize, (y + 1) * cellSize]
+    draw.rectangle(rect, fill=colour, outline=None)
+
+def drawPieceBorder(draw, points, cellSize):
+    if not points:
+        return
+
+    # Create a mask to draw the border
+    minX = min(p[0] for p in points)
+    maxX = max(p[0] for p in points)
+    minY = min(p[1] for p in points)
+    maxY = max(p[1] for p in points)
+
+    mask = Image.new('L', ((maxX - minX + 1) * cellSize, (maxY - minY + 1) * cellSize), 0)
+    maskDraw = ImageDraw.Draw(mask)
+
+    for x, y in points:
+        rect = [(x - minX) * cellSize, (y - minY) * cellSize, (x - minX + 1) * cellSize, (y - minY + 1) * cellSize]
+        maskDraw.rectangle(rect, fill=1)
+
+    # Convert the mask to a NumPy array and ensure it is of type uint8
+    maskNp = np.array(mask, dtype=np.uint8) * 255
+
+    # Find the contour of the filled region
+    contours, _ = cv2.findContours(maskNp, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Draw the contours
+    for contour in contours:
+        scaledContour = [(point[0][0] + minX * cellSize, point[0][1] + minY * cellSize) for point in contour]
+        draw.line(scaledContour + [scaledContour[0]], fill='black', width=2)
+
+def printTessellation(solution, colourMapping, cellSize=20, outputPath=None):
+    solution = np.array(solution)
+
+    rows, cols = solution.shape
+    imgWidth = cols * cellSize
+    imgHeight = rows * cellSize
+
+    # Create a blank image with white background
+    image = Image.new('RGB', (imgWidth, imgHeight), 'white')
+    draw = ImageDraw.Draw(image)
+
+    # Fill the image with colors
+    for y in range(rows):
+        for x in range(cols):
+            pieceId = solution[y, x]
+            drawPieceOutline(draw, colourMapping, pieceId, x, y, cellSize)
+
+    # Draw outlines for each piece using flood fill
+    visited = set()
+    uniqueIds = np.unique(solution)
+    for pieceId in uniqueIds:
+        for y in range(rows):
+            for x in range(cols):
+                if solution[y, x] == pieceId and (x, y) not in visited:
+                    points = floodFill(solution, x, y, pieceId, visited)
+                    drawPieceBorder(draw, points, cellSize)
+
+    if outputPath:
+        image.save(outputPath)
+
+    image.show()
+    return image

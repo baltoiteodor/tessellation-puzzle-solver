@@ -9,20 +9,25 @@ folder_paths = [
     # "images/test-14",
     # "images/test-15",
     # "images/test-20",
-    "images/test-22",
     # "images/test-23",
     # "images/test-30",
     # "images/test-42",
     # "images/test-50",
     # "images/test-65",
+    # "images/test-5-nc",
+    # "images/test-6-nc",
+    # "images/test-10-nc",
+    # "images/test-14-nc",
+    # "images/test-15-nc",
+    # "images/test-20-nc",
+    # "images/test-23-nc",
+    # "images/test-30-nc",
+    # "images/test-42-nc",
+    # "images/test-50-nc",
+    # "images/test-65-nc",
 ]
 
-results = {}
-
 for folder_path in folder_paths:
-    # Path to the folder containing examples
-    # folder_path = "images/test-20"
-
     # List all files in the folder
     example_files = os.listdir(folder_path)
     totalTime = 0
@@ -36,9 +41,8 @@ for folder_path in folder_paths:
                 'python',
                 '.\\tps.py',
                 '--image', os.path.join(folder_path, example_file),  # Construct the path for the current example file
-                '--colour',
+                # '--colour',
                 '--DLX', '2',
-                # '--show'
             ]
 
             print("Running command:", " ".join(command))  # Print the command being executed
@@ -51,8 +55,4 @@ for folder_path in folder_paths:
             except subprocess.CalledProcessError as e:
                 print("Error:", e)
 
-    results[folder_path] = (totalTime / numOfRuns) / len(example_files)
-    print(f"Running {folder_path} on DLX-PyPy method took on average: ", (totalTime / numOfRuns) / len(example_files))
-
-for folder_path in folder_paths:
-    print(f"Running {folder_path} on DLX-PyPy method took on average: ", results[folder_path])
+    print("Running low_num_tests on DLX method took on average: ", totalTime / numOfRuns)

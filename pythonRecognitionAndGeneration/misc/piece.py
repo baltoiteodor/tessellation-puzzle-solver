@@ -37,11 +37,14 @@ def trimColourGrid(grid):
 
     return grid
 
-def similarColours(colour1, colour2, COLOURTHRESHOLD):
+def similarColours(colour1, colour2, dict, COLOURTHRESHOLD):
     # print(colour1)
     # print(colour2)
     colour1 = tuple(colour1)
     colour2 = tuple(colour2)
+    pair = (colour1, colour2)
+    if pair in dict:
+        return dict[pair] < COLOURTHRESHOLD
 
     lab1 = convert_color(sRGBColor(colour1[2], colour1[1], colour1[0]), LabColor)
     lab2 = convert_color(sRGBColor(colour2[2], colour2[1], colour2[0]), LabColor)
@@ -61,7 +64,7 @@ def similarGrids(grid1, grid2):
                 return False
     return True
 
-def similarColourGrids(grid, gridC1, gridC2):
+def similarColourGrids(grid, gridC1, gridC2, colourDict):
     # plt.imshow(gridC1)
     # plt.axis('off')  # Turn off axis labels
     # plt.show()
@@ -74,9 +77,9 @@ def similarColourGrids(grid, gridC1, gridC2):
         return False
     for r in range(len(grid)):
         for c in range(len(grid[0])):
-            if grid[r][c] == 2 and not similarColours(gridC1[r][c], gridC2[r][c], COLOURTHRESHOLDX):
+            if grid[r][c] == 2 and not similarColours(gridC1[r][c], gridC2[r][c], colourDict, COLOURTHRESHOLDX):
                 faulty += 1
-            if grid[r][c] == 1 and not similarColours(gridC1[r][c], gridC2[r][c], COLOURTHRESHOLDTHUMB):
+            if grid[r][c] == 1 and not similarColours(gridC1[r][c], gridC2[r][c], colourDict, COLOURTHRESHOLDTHUMB):
                 faultyThumb += 1
     if faulty > FAULTYNUMX or faultyThumb > FAULTYNUMTHUMB:
         return False
@@ -202,16 +205,16 @@ class Piece:
         self.setRowsNum(len(self._grid))
         self.setColsNum(len(self._grid[0]))
 
-    def retrieveAngle(self, grid, colourGrid):
+    def retrieveAngle(self, grid, colourGrid, colourDict):
         # print("lenAllGrids: ", len(self._allGrids))
-        cv2.imwrite(f"wth{self.orderNum()}.png", self._originalContour.getImage())
+        # cv2.imwrite(f"wth{self.orderNum()}.png", self._originalContour.getImage())
         # if self.orderNum() == 5:
         #     print("mortimati?")
         #     plt.imshow(self._allColourGrids[0])
         #     plt.axis('off')  # Turn off axis labels
         #     plt.show()
         for i, currGrid in enumerate(self._allGrids):
-            if similarGrids(grid, currGrid) and similarColourGrids(currGrid, self._allColourGrids[i], colourGrid):
+            if similarGrids(grid, currGrid) and similarColourGrids(currGrid, self._allColourGrids[i], colourGrid, colourDict):
                 return i * 90
 
         for i, currGrid in enumerate(self._allGrids):

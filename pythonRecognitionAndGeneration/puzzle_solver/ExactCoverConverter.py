@@ -14,12 +14,12 @@ FAULTYNUMX = 1
 FAULTYNUMTHUMB = 1
 # 1
 FAULTYNUMHOLES = 1
-# 20
-COLOURTHRESHOLDX = 28
-# 45
+# 36
+COLOURTHRESHOLDX = 36
+# 42
 COLOURTHRESHOLDTHUMB = 42
-# 30
-COLOURTHRESHOLDHOLE = 32
+# 38
+COLOURTHRESHOLDHOLE = 38
 
 class ExactCoverConverter:
     def __init__(self, board: Piece, pieces, colourMap, version, colour, jigsaw):
@@ -45,11 +45,29 @@ class ExactCoverConverter:
         self._availablePositionsPerPiece = {}
         for piece in pieces:
             self._availablePositionsPerPiece[piece.orderNum()] = []
-    # def constructMatrix(self):
-    #     if self._version == 0:
-    #         self._constructMatrixHome()
-    #     else:
-    #         self._constructMatrixPyPy()
+
+        # Adaptive thresholds set for colour matching.
+        self._FAULTYNUMX = FAULTYNUMX
+        self._FAULTYNUMTHUMB = FAULTYNUMTHUMB
+        self._FAULTYNUMHOLES = FAULTYNUMHOLES
+        self._COLOURTHRESHOLDX = COLOURTHRESHOLDX
+        self._COLOURTHRESHOLDTHUMB = COLOURTHRESHOLDTHUMB
+        self._COLOURTHRESHOLDHOLE = COLOURTHRESHOLDHOLE
+
+    def setThresholds(self, FAULTYNUMX, FAULTYNUMTHUMB, FAULTYNUMHOLES,
+                      COLOURTHRESHOLDX, COLOURTHRESHOLDTHUMB, COLOURTHRESHOLDHOLE):
+
+        self._FAULTYNUMX = FAULTYNUMX
+        self._FAULTYNUMTHUMB = FAULTYNUMTHUMB
+        self._FAULTYNUMHOLES = FAULTYNUMHOLES
+        self._COLOURTHRESHOLDX = COLOURTHRESHOLDX
+        self._COLOURTHRESHOLDTHUMB = COLOURTHRESHOLDTHUMB
+        self._COLOURTHRESHOLDHOLE = COLOURTHRESHOLDHOLE
+        self._availablePositionsPerPiece = {}
+        for piece in self._pieces:
+            self._availablePositionsPerPiece[piece.orderNum()] = []
+
+
 
     def constructMatrix(self):
         # The width of the DLX matrix will be the size of the board piece for information on
@@ -87,10 +105,9 @@ class ExactCoverConverter:
             self.PyPyMatrixNotOptimised(boardSize, width)
         elif self._version == 2:
             self.PyPyMatrixOptimised(boardSize, width)
-
+        print(self._COLOURTHRESHOLDHOLE, self._COLOURTHRESHOLDX)
         return width
 
-    # TODO: pieces can only go in certain spaces, no point in trying 1, 1 as example for a corner.
     def PyPyMatrixOptimised(self, boardSize, width):
         for r in range(self._boardPiece.rows()):
             for c in range(self._boardPiece.columns()):
@@ -140,24 +157,23 @@ class ExactCoverConverter:
                     return False
 
                 timeIn = timer()
-
                 # If jigsaw and we deal with a hole.
                 # print(piece.getColourAt(r - row, c - col))
                 if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 0 and self._jigsawTwosBoard[r][c] == 0 and not np.array_equal(piece.getColourAt(r - row, c - col), [0, 0, 0])
-                                                         and not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDHOLE))):
+                                                         and not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, self._COLOURTHRESHOLDHOLE))):
                     timeOut = timer()
                     self._time += timeOut - timeIn
                     faultyHoles += 1
                     # print("This happened: ", piece.orderNum(), piece.getColourAt(r - row, c - col), r - row, c - col)
                 # If jigsaw and we deal with a thumb.
                 if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 1 and self._jigsawTwosBoard[r][c] == 0 and
-                                                         not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDTHUMB))):
+                                                         not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, self._COLOURTHRESHOLDTHUMB))):
                     timeOut = timer()
                     self._time += timeOut - timeIn
                     faultyThumbs += 1
                 # print(r, c, r - row, c - col, piece.pixelAt(r - row, c - col) == 2, similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary))
                 if self._colouring and self._jigsaw and (piece.pixelAt(r - row, c - col) == 2 and self._jigsawTwosBoard[r][c] == 2 and
-                                        not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDX))):
+                                        not (similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary, self._COLOURTHRESHOLDX))):
                     # print("tried and not worked: ", piece.orderNum(), r - row, c - col, r, c)
                     # print(piece.getColourAt(r - row, c - col))
                     # print(self._colourMap[r][c])
@@ -170,7 +186,7 @@ class ExactCoverConverter:
                     # return False
                 # print("sa moara mata")
                 if self._colouring and not self._jigsaw and (piece.pixelAt(r - row, c - col) != 0 and
-                                        not similarColoursJigsaw(piece.getColour(), self._colourMap[r][c], self._colourPairsDictionary, COLOURTHRESHOLDX)):
+                                        not similarColoursJigsaw(piece.getColour(), self._colourMap[r][c], self._colourPairsDictionary, self._COLOURTHRESHOLDX)):
                     timeOut = timer()
                     self._time += timeOut - timeIn
                     return False
@@ -181,7 +197,7 @@ class ExactCoverConverter:
                 # colourDist += similarColoursJigsaw(piece.getColourAt(r - row, c - col), self._colourMap[r][c], self._colourPairsDictionary)
         if self._jigsaw:
             # print(faulty)
-            if faulty > FAULTYNUMX or faultyThumbs > FAULTYNUMTHUMB or faultyHoles > FAULTYNUMHOLES:
+            if faulty > self._FAULTYNUMX or faultyThumbs > self._FAULTYNUMTHUMB or faultyHoles > self._FAULTYNUMHOLES:
                 return False
                 # or colourDist > COLOURSUMTHRESHOLD):
         return True
@@ -239,6 +255,8 @@ class ExactCoverConverter:
     def getPyPy(self):
         return self._pypyColumns, self._pypyRows
 
+    def getDict(self):
+        return self._colourPairsDictionary
     # def _constructMatrixPyPy(self):
     #     boardSize = self._boardPiece.columns() * self._boardPiece.rows()
     #     width = boardSize + len(self._pieces)

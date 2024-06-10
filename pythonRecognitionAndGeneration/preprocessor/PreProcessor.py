@@ -1,12 +1,16 @@
 import cv2
 import imutils
 import numpy as np
+from timeit import default_timer as timer
+
 # import skimage.filters as filters
 
 
 class PreProcessor:
     def __init__(self, image):
         self._image = image
+        self._startTime = self._endTime = 0
+
 
     def getImage(self):
         return self._image
@@ -141,6 +145,9 @@ class PreProcessor:
         cv2.imwrite("otsu.png", self._image)
 
     def basic2D(self):
+
+        self._startTime = timer()
+
         alpha = 1.95
         beta = 0
         # No resizing for testing
@@ -161,12 +168,17 @@ class PreProcessor:
 
         self._image = threshImage
 
+        self._endTime = timer()
+
     def jigsaw2D(self):
         # Dau un blur in cap.
         # self.applyBlur(33)
         # self._image = cv2.cvtColor(self._image, cv2.COLOR_BGR2HSV)
         # self.applyContrast(1.5, 0)
         # self.lab()
+
+        self._startTime = timer()
+
         lab = cv2.cvtColor(self._image, cv2.COLOR_BGR2LAB)
 
         # Split the LAB image into L, A, and B channels
@@ -180,22 +192,28 @@ class PreProcessor:
 
         # Convert the LAB image back to BGR color space
         enhanced_image = cv2.cvtColor(lab_eq, cv2.COLOR_LAB2BGR)
-        cv2.imwrite("enh.jpg", enhanced_image)
+        # cv2.imwrite("enh.jpg", enhanced_image)
 
 
         # Apply CLAHE to the L channel
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
-        l_clahe = clahe.apply(l)
-
-        # Merge the CLAHE-enhanced L channel with the original A and B channels
-        lab_clahe = cv2.merge((l_clahe, a, b))
-
-        # Convert the LAB image back to BGR color space
-        enhanced_image_clahe = cv2.cvtColor(lab_clahe, cv2.COLOR_LAB2BGR)
-        cv2.imwrite("enh2.jpg", enhanced_image_clahe)
+        # clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        # l_clahe = clahe.apply(l)
+        #
+        # # Merge the CLAHE-enhanced L channel with the original A and B channels
+        # lab_clahe = cv2.merge((l_clahe, a, b))
+        #
+        # # Convert the LAB image back to BGR color space
+        # enhanced_image_clahe = cv2.cvtColor(lab_clahe, cv2.COLOR_LAB2BGR)
+        # cv2.imwrite("enh2.jpg", enhanced_image_clahe)
 
         self._image = enhanced_image
         self.gray()
-        self.adaptiveThreshold(23, 7)
-        self.morphologicalOpen()
+        self.otsu()
+        # self.adaptiveThreshold(23, 7)
+        # self.morphologicalOpen()
         # self.pyrMeanShiftFilter()
+
+        self._endTime = timer()
+
+    def getTimeTaken(self):
+        return self._endTime - self._startTime

@@ -1,13 +1,16 @@
 import sys
+
 sys.path.append('..')
 
 from build.DLXCPP import *
 
-def solveDLXCPP(rows, width):
+
+def solveDLXCPP(rows, width, jigsaw):
     solver = DLXCPPSolver(rows, width)
-    # print("Rows: ", solver.getRows())
-    # print(solver.getWidth())
-    result = solver.solve(1000)
-    print("Result ALOHA: ", len(result))
+    if jigsaw:
+        result = solver.solve(25000)
+    else:
+        result = solver.solve(1)
+    print("Number of potential solutions found: ", len(result))
 
     return result

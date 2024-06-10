@@ -18,11 +18,10 @@ class ShapeFinder:
     def __init__(self, logger: bool):
         self._logger = logger
         self._startTime = self._endTime = 0
-        pass
 
     def detectShapes3D(self, image, originalImage):
+        self._startTime = timer()
         if self._logger:
-            self._startTime = timer()
             print("Entering ShapeFinder class, function detectShapes...")
 
         cv.imwrite("imgContrastLab.png", image)
@@ -85,9 +84,9 @@ class ShapeFinder:
         contourList = []
         for i, contour in enumerate(contours):
             # Approximate the contour to smoothen it
-            print("smoothing")
+            # print("smoothing")
             smooth_contour = cv.approxPolyDP(contour, epsilon * cv.arcLength(contour, True), True)
-            print("Smoothed")
+            # print("Smoothed")
             # Append the smoothed contour to the list if the contour has at least 4 vertices.
             if len(smooth_contour) <= MinVertices or len(smooth_contour) >= MaxVertices:
                 continue
@@ -108,9 +107,8 @@ class ShapeFinder:
         contour_image_smt = np.zeros_like(originalImage)
         cv.drawContours(contour_image_smt, smoothed_contours, -1, (0, 255, 0), 2)
         cv.imwrite('contoursagainsmoothed.png', contour_image_smt)
-
+        self._endTime = timer()
         if self._logger:
-            self._endTime = timer()
             print(f"Exiting ShapeFinder class: {self._endTime - self._startTime}...")
             print("---")
             print("----------------------------")
@@ -118,8 +116,8 @@ class ShapeFinder:
         return contourList
 
     def detectJigsaw(self, image, originalImage):
+        self._startTime = timer()
         if self._logger:
-            self._startTime = timer()
             print("Entering ShapeFinder class, function detectShapes...")
         image = 255 - image
         cv.imwrite("imgContrastLab.png", image)
@@ -191,9 +189,8 @@ class ShapeFinder:
         # contour_image_smt = np.zeros_like(originalImage)
         # cv.drawContours(contour_image_smt, smoothed_contours, -1, (0, 255, 0), 2)
         # cv.imwrite('contoursagainsmoothed.png', contour_image_smt)
-
+        self._endTime = timer()
         if self._logger:
-            self._endTime = timer()
             print(f"Exiting ShapeFinder class: {self._endTime - self._startTime}...")
             print("---")
             print("----------------------------")
@@ -201,14 +198,14 @@ class ShapeFinder:
         return filteredContours
 
     def detectShapes2D(self, image, originalImage):
+        self._startTime = timer()
         if self._logger:
-            self._startTime = timer()
             print("Entering ShapeFinder class, function detectShapes...")
 
         # Find contours and deal with them.
         contoursP = cv.findContours(image, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
         contours = imutils.grab_contours(contoursP)
-        print()
+        # print()
         # what is going on?
         contour_image = np.zeros_like(originalImage)
         cv.drawContours(contour_image, contours, -1, (255, 255, 255), thickness = 1)
@@ -248,11 +245,13 @@ class ShapeFinder:
         cv.imwrite('contoursagainsmoothed.jpg', contour_image_smt)
         # cv.imshow('Contours', contour_image_smt)
         # cv.waitKey(0)
-
+        self._endTime = timer()
         if self._logger:
-            self._endTime = timer()
             print(f"Exiting ShapeFinder class: {self._endTime - self._startTime}...")
             print("---")
             print("----------------------------")
             print("---")
         return contourList
+
+    def getTimeTaken(self):
+        return self._endTime - self._startTime

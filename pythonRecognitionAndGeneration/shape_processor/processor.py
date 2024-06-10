@@ -82,12 +82,11 @@ class Processor:
         # Find the smallest edge first, this will be a potential candidate for the unit length.
         contour_image_smt = np.zeros((780, 780, 3), dtype = np.uint8)
 
-        for contour in self._contours:
-            cv.drawContours(contour_image_smt, contour.getOriginalContour(), -1, (0, 255, 0), 2)
-        cv.imwrite('contoursBeforeProc.png', contour_image_smt)
-
+        # for contour in self._contours:
+        #     cv.drawContours(contour_image_smt, contour.getOriginalContour(), -1, (0, 255, 0), 2)
+        # cv.imwrite('contoursBeforeProc.png', contour_image_smt)
+        self._startTime = timer()
         if self._logger:
-            self._startTime = timer()
             print(f"Entering Processor class...")
             print("Trying to find a good unit length for the grids of the pieces...")
             print("Looking for the smallest edge in the contours for a starting value.")
@@ -187,8 +186,8 @@ class Processor:
 
             unitLen -= DECREMENT
         # While loop complete, should have the pieces ready.
+        self._endTime = timer()
         if self._logger:
-            self._endTime = timer()
             print("Grids completed successfully.")
             print(f"Exiting Processor class: {self._endTime - self._startTime}...")
             print("---")
@@ -198,9 +197,9 @@ class Processor:
     def findGridsJigsaw(self, rows, columns):
         # Declare a dictionary from contours to their minimum rectangle for future use
         # Find the smallest edge first, this will be a potential candidate for the unit length.
-
+        self._startTime = timer()
         if self._logger:
-            self._startTime = timer()
+
             print(f"Entering Processor class...")
             print("Trying to find a good unit length for the grids of the jigsaw pieces...")
             print("Looking for the smallest edge in the contours for a starting value.")
@@ -220,13 +219,13 @@ class Processor:
         for contour in self._contours:
             if contour.getArea() != maxArea:
                 piecesArea += contour.getArea()
-        print(piecesArea)
+        # print(piecesArea)
         a = piecesArea / (9 * rows * columns)
-        print(a)
+        # print(a)
         unitLen = int(np.sqrt(a))
 
-        print("UnitLen: ", unitLen)
-        print("Max ", maxArea)
+        # print("UnitLen: ", unitLen)
+        # print("Max ", maxArea)
         # boardScaler = (unitLen * unitLen * 9 * rows * columns) / maxArea
         targetW = unitLen * 3 * columns
         targetH = unitLen * 3 * rows
@@ -251,8 +250,8 @@ class Processor:
                 pieceH = leftBotJig[1] - leftJig[1]
                 accUnit = pieceH / 3
                 scalerH = unitLen / accUnit
-                print("For contour ", i)
-                print(scalerW, scalerH)
+                # print("For contour ", i)
+                # print(scalerW, scalerH)
 
                 targetPieceW = int(w * scalerW)
                 targetPieceH = int(h * scalerH)
@@ -281,6 +280,28 @@ class Processor:
             cv.circle(img, adjusted_closest_point, 5, (0, 0, 255), -2)  # Red circle
             adjusted_closest_point = (closestPoint[0] - x + 200 - unitLen, closestPoint[1] - y + 200 - unitLen)
             cv.circle(img, adjusted_closest_point, 5, (0, 0, 255), -2)  # Red circle
+
+            ### Report purposes.
+
+            # pieceImg = contour.getImage()
+            # corners_image = np.zeros_like(pieceImg)
+            # mask = np.zeros(pieceImg.shape[:2], dtype=np.uint8)
+            # cv.drawContours(mask, [contour.getOriginalContour()], -1, 255, -1)
+            # gray = cv.cvtColor(pieceImg, cv.COLOR_BGR2GRAY)
+            # gray = np.float32(gray)
+            # dst = cv.cornerHarris(gray, blockSize=2, ksize=3, k=0.04)
+            # dst = cv.dilate(dst, None)
+            # threshold = 0.01 * dst.max()
+            # corners_image[dst > threshold] = [0, 0, 255]
+            #
+            # combined_image = cv.bitwise_and(pieceImg, pieceImg, mask=mask)
+            # combined_image[dst > threshold] = [0, 0, 255]
+            #
+            # cv.imshow('Corners', combined_image)
+            # cv.waitKey(0)
+            # cv.destroyAllWindows()
+
+            ###
 
             for row in range(6):
                 for col in range(6):
@@ -331,7 +352,8 @@ class Processor:
             # Remove borderline zeroes.
             grid = trimGrid(grid)
             grid = fillTwos(grid)
-            print("For piece this is the grid ", grid)
+            if self._logger:
+                print("For piece this is the grid: ", grid)
             newPiece: Piece = Piece(contour, grid, contour.getColour(), unitLen, (gridX, gridY))
             newPiece.canBeBoard(noOnes == newPiece.area(), self._jigsawMode)
 
@@ -347,9 +369,8 @@ class Processor:
             # cv.imshow('Contour with Closest Point', img)
             # cv.waitKey(0)
 
-
+        self._endTime = timer()
         if self._logger:
-                self._endTime = timer()
                 print("Grids completed successfully.")
                 print(f"Exiting Processor class: {self._endTime - self._startTime}...")
                 print("---")
@@ -371,3 +392,6 @@ class Processor:
 
     def getPieces(self):
         return self._pieces
+
+    def getTimeTaken(self):
+        return self._endTime - self._startTime
