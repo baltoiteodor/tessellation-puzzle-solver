@@ -39,36 +39,46 @@ class ShapeFinder:
         filteredContours = []
         H, W = image.shape[:2]
         AREA = H * W
-        for contour in contours:
+        for i, contour in enumerate(contours):
             area = cv.contourArea(contour)
-
             # Area filtering:
             MINAREA = AREA / 600
             MAXAREA = AREA / 2
 
+            # print(area)
+            # print(contour)
+
+            # image = np.zeros((800, 800), dtype=np.uint8)
+            # image2 = np.zeros((800, 800), dtype=np.uint8)
+            # min_x = np.min(contour[:, :, 0])
+            # min_y = np.min(contour[:, :, 1])
+
+            # translated_contour = contour - [min_x - 20, min_y - 20]
+            # area = cv.contourArea(contour)
+            # print(area)
+            # print(cv.pointPolygonTest(translated_contour, (200, 200), False))
+            # cv.drawContours(image, [translated_contour], -1, (255, 255, 255), 2)
+            # cv.circle(image, (200, 200), radius=5, color=(255, 255, 255), thickness=-1)
+            # cv.imshow("H", image)
+            # cv.waitKey(0)
+            # cv.destroyAllWindows()
+
+            # simplified_contour = cv.approxPolyDP(contour, 0.5, True)
+            # translated_contourV2 = simplified_contour - [min_x - 20, min_y - 20]
+
+            # print(cv.contourArea(simplified_contour))
+            # cv.drawContours(image2, [translated_contourV2], -1, (255, 255, 255), 2)
+            # cv.imshow("H", image2)
+            # cv.waitKey(0)
+            # cv.destroyAllWindows()
             if not MINAREA < area < MAXAREA:
                 continue
 
-            # Aspect ratio (1:10 minimum):
-            # x, y, w, h = cv.boundingRect(contour)
-            # aspectRatio = float(w) / h
-            # if not MINASPECT < aspectRatio < MAXASPECT:
-            #     continue
-
-            # Curvature of contours:
-            # hull = cv.convexHull(contour)
-            # defects = cv.convexityDefects(contour, cv.convexHull(contour, returnPoints=False))
-            #
-            # # Filter contours based on convexity defects or concave regions
-            # if defects is not None:
-            #     num_defects = defects.shape[0]
-            #     if num_defects > MAXCURVATURE:
-            #         continue
-
+            contour = Contour(cv.approxPolyDP(contour, 0.3, True), originalImage, i)
             filteredContours.append(contour)
 
-        cv.drawContours(contourFiltered, filteredContours, -1, (0, 255, 0), 2)
-        cv.imwrite('contoursagainButFiltered.png', contourFiltered)
+        # cv.drawContours(contourFiltered, filteredContours, -1, (0, 255, 0), 2)
+        # cv.imwrite('contoursagainButFiltered.png', contourFiltered)
 
         if self._logger:
             print("Contours have been found and triaged...")
@@ -113,13 +123,14 @@ class ShapeFinder:
             print("---")
             print("----------------------------")
             print("---")
-        return contourList
+
+        return filteredContours
 
     def detectJigsaw(self, image, originalImage):
         self._startTime = timer()
         if self._logger:
             print("Entering ShapeFinder class, function detectShapes...")
-        image = 255 - image
+        # image = 255 - image
         cv.imwrite("imgContrastLab.png", image)
         # edgeImage = cv.Canny(image, 10, 150)
         # cv.imwrite("canny.png", edgeImage)

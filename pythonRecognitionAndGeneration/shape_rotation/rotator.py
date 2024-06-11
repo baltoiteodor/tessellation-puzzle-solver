@@ -70,6 +70,43 @@ class Rotator:
 
         return contours
 
+
+
+
+    def get_corners(self, contour, num_corners=4):
+        # Create a mask from the contour
+        mask = np.zeros((contour.max(axis=0)[0][1] + 1, contour.max(axis=0)[0][0] + 1), dtype=np.uint8)
+        cv.drawContours(mask, [contour], -1, 255, -1)
+
+        # Detect corners using the Shi-Tomasi method
+        corners = cv.goodFeaturesToTrack(mask, num_corners, 0.01, 10)
+        corners = np.int0(corners) if corners is not None else []
+
+        # Extract the coordinates of the corners
+        corner_points = []
+        for corner in corners:
+            x, y = corner.ravel()
+            corner_points.append((x, y))
+
+        return corner_points
+
+    def draw_corners(self, image, contours):
+        for contour in contours:
+            contour = contour.getContour()
+            # Ensure we get the actual contour points
+            corners = self.get_corners(contour)
+            print(corners)
+            # Draw corners
+            for corner in corners:
+                cv.circle(image, corner, 5, (0, 255, 0), -1)
+
+        return image
+
+    def rotate3D(self, contours, image):
+        image_with_corners = self.draw_corners(image, contours)
+        cv.imwrite("corners.jpg", image_with_corners)
+        return image_with_corners
+
 # Given a contour, finds the side that has a point with max y coordinate. Describes it as a pair of two points.
 def lowestSide(contour):
     maxY = -1

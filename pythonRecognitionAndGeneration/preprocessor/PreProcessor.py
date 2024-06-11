@@ -133,7 +133,7 @@ class PreProcessor:
         closing = cv2.morphologyEx(opening, cv2.MORPH_CLOSE, kernel)
         cv2.imwrite("openingmorph.png", opening)
         cv2.imwrite("closemor.png", closing)
-        self._image = opening
+        self._image = closing
 
     def adaptiveThreshold(self, blockSize, C):
         self._image = cv2.adaptiveThreshold(self._image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,
@@ -208,11 +208,41 @@ class PreProcessor:
 
         self._image = enhanced_image
         self.gray()
+        # self._image = cv2.Canny(self._image, 10, 150)
+        # cv2.imwrite("cema.png", self._image)
         self.otsu()
+
         # self.adaptiveThreshold(23, 7)
         # self.morphologicalOpen()
         # self.pyrMeanShiftFilter()
 
+        self._endTime = timer()
+
+    def jigsaw2DV2(self):
+        self._startTime = timer()
+        top_left_color = self._image[0, 0]
+
+        # Create a mask for the background
+        mask = cv2.inRange(self._image, top_left_color, top_left_color)
+
+        # Invert the mask to get the foreground
+        inverted_mask = cv2.bitwise_not(mask)
+
+        # Create a black image for the background
+        background = np.zeros_like(self._image)
+
+        # Create a white image for the foreground
+        foreground = np.full_like(self._image, 255)
+
+        # Use the mask to combine the background and foreground
+        result = cv2.bitwise_and(foreground, foreground, mask=inverted_mask)
+        result += cv2.bitwise_and(background, background, mask=mask)
+
+        # Convert the result to a single channel (grayscale) image
+        gray_result = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
+
+        self._image = gray_result
+        cv2.imwrite("cema.png", self._image)
         self._endTime = timer()
 
     def getTimeTaken(self):

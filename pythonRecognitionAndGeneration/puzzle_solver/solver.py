@@ -10,17 +10,17 @@ import cv2
 
 # Initial thresholds for colour matching jigsaw pieces.
 # 1
-FAULTYNUMX = 1
+FAULTYNUMX = 0
 # 0
 FAULTYNUMTHUMB = 1
 # 1
 FAULTYNUMHOLES = 1
 # 36
-COLOURTHRESHOLDX = 36
+COLOURTHRESHOLDX = 20
 # 42
-COLOURTHRESHOLDTHUMB = 42
+COLOURTHRESHOLDTHUMB = 30
 # 38
-COLOURTHRESHOLDHOLE = 38
+COLOURTHRESHOLDHOLE = 40
 
 
 class Solver:
@@ -64,6 +64,11 @@ class Solver:
         # Add an order number such that we can differentiate pieces in the output matrix.
         # piecesIndex = [(x, index + 1) for index, x in enumerate(pieces)]
         for index, piece in enumerate(pieces):
+            # if index == 0:
+            # cv2.imwrite(f"piece{index}.png", piece.getOriginalContour().getImage())
+            # plt.imshow(piece.getColourGrid())
+            # plt.axis('off')  # Turn off axis labels
+            # plt.show()
             piece.setOrderNumber(index + 1)
 
         # Calculate real area of pieces to determine scale factor of board.
@@ -254,16 +259,16 @@ class Solver:
         threshThumbBest = COLOURTHRESHOLDTHUMB
         threshHoleBest = COLOURTHRESHOLDHOLE
 
-        minOutcome = 1000
+        minOutcome = 10000
         while outcome > 400:
             threshX -= 3
             threshThumb -= 3
             threshHole -= 3
-            converter.setThresholds(1, 1, 1, threshX, threshThumb, threshHole)
+            converter.setThresholds(0, 1, 1, threshX, threshThumb, threshHole)
             width = converter.constructMatrix()
             labels, rows = converter.getPyPy()
             outcome = self._solveDLXCPP(labels, rows, boardPiece, outputMatrix, width)
-            if outcome <= minOutcome and outcome > 0:
+            if minOutcome > outcome > 0:
                 minOutcome = outcome
                 threshXBest = threshX
                 threshThumbBest = threshThumb
@@ -271,12 +276,20 @@ class Solver:
             if 30 > outcome > 0:
                 return outcome
 
-        for it in range(5):
+        lastTestNum = 10
+        good = False
+        for it in range(20):
             if outcome == 0:
-                threshX += 1
-                threshThumb += 1
-                threshHole += 1
+                # Maybe time it by an increasing factor?
+                if not good:
+                    threshX += 2
+                    threshThumb += 2
+                    threshHole += 2
+                else:
+                    threshThumb += 1
+                    threshHole += 1
             else:
+                good = True
                 if outcome >= 250:
                     threshX -= 1
                     threshThumb -= 2
@@ -285,13 +298,16 @@ class Solver:
                     threshX -= 0
                     threshThumb -= 1
                     threshHole -= 1
-
+            if good:
+                lastTestNum -= 1
+            if lastTestNum == 0:
+                break
             converter.setThresholds(1, 1, 1, threshX, threshThumb, threshHole)
             width = converter.constructMatrix()
             labels, rows = converter.getPyPy()
             outcome = self._solveDLXCPP(labels, rows, boardPiece, outputMatrix, width)
 
-            if minOutcome >= outcome > 0:
+            if minOutcome > outcome > 0:
                 minOutcome = outcome
                 threshXBest = threshX
                 threshThumbBest = threshThumb
@@ -300,7 +316,7 @@ class Solver:
             if 30 > outcome > 0:
                 return outcome
 
-        # print("Best stuff: ", threshXBest, threshThumbBest, threshHoleBest)
+        print("Best stuff: ", threshXBest, threshThumbBest, threshHoleBest)
         converter.setThresholds(1, 1, 1, threshXBest, threshThumbBest, threshHoleBest)
         width = converter.constructMatrix()
         labels, rows = converter.getPyPy()

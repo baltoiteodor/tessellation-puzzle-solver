@@ -611,8 +611,8 @@ def findBestSolutionNCC(potential_solutions, target_image):
         for future in as_completed(futures):
             ncc_score = future.result()
             solution_image = futures[future]
-            if ncc_score > 0.98:
-                return solution_image, ncc_score
+            # if ncc_score > 0.98:
+            #     return solution_image, ncc_score
             if ncc_score > max_ncc:
                 max_ncc = ncc_score
                 most_similar_image = solution_image

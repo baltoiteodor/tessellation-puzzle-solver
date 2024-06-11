@@ -108,13 +108,13 @@ def main():
         # prep.removeShadow()
         prep.morphologicalOpen()
 
-        prep.applyBlur(53)
+        # prep.applyBlur(53)
         prep.applyContrast(2.0, -50)
 
         # prep.hueChannel()
         # prep.lab()
         # prep.bilateralFilter()
-        prep.morphologicalOpen()
+        # prep.morphologicalOpen()
         # prep.morphologicalOpen()
 
         prep.pyrMeanShiftFilter()
@@ -149,7 +149,8 @@ def main():
     else:
         if jigsaw:
             # GIVE ME JIGSAW CONTOURS.
-            prep.jigsaw2D()
+            # prep.jigsaw2D()
+            prep.jigsaw2DV2()
             copyImage = prep.getImage()
             contours = shapeFinder.detectJigsaw(copyImage, originalImage)
         else:
@@ -162,7 +163,10 @@ def main():
     rotatedContours = contours
     rotator = Rotator(rotatorLog | allLog)
     if not jigsaw:
-        rotatedContours = rotator.rotate(contours, originalImage)
+        if realProc:
+            rotatedContours = rotator.rotate3D(contours, originalImage)
+        else:
+            rotatedContours = rotator.rotate(contours, originalImage)
 
     # Find the units in which to break the shapes.
     # Grid the smallest rectangle in a grid with units lxl, where l is a divisor of the smallest side.
