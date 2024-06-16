@@ -690,10 +690,12 @@ def findBoard(pieces: Pieces):
     return board
 
 
-def removePiece(currBoard: Board, piece: Piece, row: int, col: int):
+def removePiece(currBoard: Board, outputMatrix: Board, piece: Piece, row: int, col: int):
     for i in range(row, row + piece.rows()):
         for j in range(col, col + piece.columns()):
             currBoard[i][j] -= piece.pixelAt(i - row, j - col)
+            if piece.pixelAt(i - row, j - col):
+                outputMatrix[i][j] = 0
 
 
 def setPiece(currBoard: Board, board: Board, outputMatrix: Board,
@@ -725,7 +727,7 @@ def rotatePieceNonOptimal(piece: Piece):
 
 
 # Returns True if the piece fits in nicely, otherwise False.
-def isValid(currBoard: Board, targetBoard: Board, colourMap, piece: Piece, row: int, col: int, colourMatters: bool):
+def isValid(currBoard: Board, targetBoard: Board, colourMap, piece: Piece, row: int, col: int, colourMatters: bool, dict):
     # Pieces will have leading 0s in the matrix like the + sign. In this case, change the row, piece of where to put
     # the piece by the leading amount of 0s on the first row. (I think)
     cnt0: int = 0
@@ -743,7 +745,7 @@ def isValid(currBoard: Board, targetBoard: Board, colourMap, piece: Piece, row: 
     for i in range(row, row + piece.rows()):
         for j in range(col, col + piece.columns()):
             if piece.pixelAt(i - row, j - col) != 0 and \
-                    (colourMatters and not similarColours(piece.getColour(), colourMap[i][j], {})):
+                    (colourMatters and not similarColours(piece.getColour(), colourMap[i][j], dict)):
                 return False, row, col
             if currBoard[i][j] + piece.pixelAt(i - row, j - col) > targetBoard[i][j]:
                 return False, row, col

@@ -156,6 +156,12 @@ class ExactCoverConverter:
                 if self._jigsaw and piece.pixelAt(r - row, c - col) == 1 and self._jigsawTwosBoard[r][c] == 2:
                     return False
 
+                # Check for Edges first.
+
+                if self._jigsaw and piece.pixelAt(r - row, c - col) == 0 and self._jigsawTwosBoard[r][c] == 0:
+                    if r == 0 or c == 0 or r == self._boardPiece.rows() - 1 or c == self._boardPiece.columns() - 1:
+                        return False
+
                 timeIn = timer()
                 # If jigsaw and we deal with a hole.
                 # print(piece.getColourAt(r - row, c - col))

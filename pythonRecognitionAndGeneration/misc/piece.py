@@ -285,7 +285,7 @@ class Piece:
                         # meanRGB = np.mean(colours, axis=0).astype(np.uint8)[0]
                         # meanRGB = np.uint8(meanRGB])
                         # print(meanRGB)
-                        meanRGB = cv2.cvtColor(meanLAB, cv2.COLOR_Lab2BGR)[0][0]
+                        meanRGB = cv2.cvtColor(meanLAB, cv2.COLOR_Lab2RGB)[0][0]
                         self._colourGrid[i][j] = meanRGB
         self._colourGrid = trimColourGrid(self._colourGrid)
         self._allColourGrids.append(self._colourGrid)
@@ -393,7 +393,7 @@ class Piece:
             self._currentRotation = 0
 
     def __repr__(self):
-        return f"Piece {self._orderNum} of size {self._numRows} x {self._numCols} and colour {self._colour}:" \
+        return f"Piece {self._orderNum} of size {self._numRows} x {self._numCols} and colour {self._colour} with {self._numRotations} rotations:" \
                f"\n{self._grid}"
 
     def __eq__(self, other):

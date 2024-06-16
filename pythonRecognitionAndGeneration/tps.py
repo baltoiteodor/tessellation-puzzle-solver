@@ -98,7 +98,7 @@ def main():
     #
 
     timeStartProject = timer()
-
+    possibleSols = 0
     # Testing preproc:
     prep = PreProcessor(copyImage)
     if realProc:
@@ -195,7 +195,9 @@ def main():
 
     nonScale = args["noScaling"]
     puzzleSolver = Solver(solverLog | allLog, originalImage, bkt, dlx, colour, cpp, jigsaw, nonScale)
-
+    chooserTimeTotal = 0
+    jigsawSuccess = True
+    ncc = 0
     if puzzleSolver.solveBackTracking(pieces):
         if show:
             if not jigsaw:
@@ -208,81 +210,90 @@ def main():
                 # print(puzzleSolver.getOutput())
                 printTessellation(puzzleSolver.getOutput(), puzzleSolver.getDictPieces())
 
-            else:
-                # print("Check this: ", puzzleSolver.getAllSolutions())
-                boardP = puzzleSolver.getBoardPiece()
-                # cv.imwrite("boardP.png", boardP.getOriginalContour().getImage())
-                boardImg = boardP.getOriginalContour().getImage()
-                # targetHash = computeHash(boardImg)
-                h, w = boardImg.shape[:2]
-                solutions = puzzleSolver.getAllSolutions()
-                colourDictionary = puzzleSolver.getColourDict()
-                # drawnSolutions = []
-                # timeBeforePrint = timer()
-                # timeTT = 0
-                # timeTTr = 0
-                # timeefff = 0
+        if jigsaw:
+            # print("Check this: ", puzzleSolver.getAllSolutions())
+            boardP = puzzleSolver.getBoardPiece()
+            # cv.imwrite("boardP.png", boardP.getOriginalContour().getImage())
+            boardImg = boardP.getOriginalContour().getImage()
+            # targetHash = computeHash(boardImg)
+            h, w = boardImg.shape[:2]
+            solutions = puzzleSolver.getAllSolutions()
+            if len(solutions) == 0:
+                jigsawSuccess = False
+            possibleSols = len(solutions)
+            colourDictionary = puzzleSolver.getColourDict()
+            chooserTimeIn = timer()
+            # drawnSolutions = []
+            # timeBeforePrint = timer()
+            # timeTT = 0
+            # timeTTr = 0
+            # timeefff = 0
 
-                # for idx in range(len(solutions)):
-                #     currSol, timeTk, timfff, incr = printJigsawOptimised(solutions[idx], puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h, idx, rows, columns, colourDictionary)
-                    # timeTT += timeTk
-                    # timeTTr += timfff
-                    # timeefff += incr
-                    # drawnSolutions.append(currSol)
-                # timeAfterPrint = timer()
-                # timeTookPrint = timeAfterPrint - timeBeforePrint
-                # print("time took printing with no parallelism: ", timeTookPrint)
-                # print("TT: ", timeTT)
-                # print("TTf: ", timeTTr)
-                # print("incr: ", timeefff)
-                # print(solutions)
-                def generate_solution(idx):
-                    return printJigsawOptimised(solutions[idx], puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h, idx, rows, columns, colourDictionary)
+            # for idx in range(len(solutions)):
+            #     currSol, timeTk, timfff, incr = printJigsawOptimised(solutions[idx], puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h, idx, rows, columns, colourDictionary)
+                # timeTT += timeTk
+                # timeTTr += timfff
+                # timeefff += incr
+                # drawnSolutions.append(currSol)
+            # timeAfterPrint = timer()
+            # timeTookPrint = timeAfterPrint - timeBeforePrint
+            # print("time took printing with no parallelism: ", timeTookPrint)
+            # print("TT: ", timeTT)
+            # print("TTf: ", timeTTr)
+            # print("incr: ", timeefff)
+            # print(solutions)
+            def generate_solution(idx):
+                return printJigsawOptimised(solutions[idx], puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h, idx, rows, columns, colourDictionary)
 
-                # Parallelized code.
-                drawnSolutions_parallel = []
-                timeBeforePrint_parallel = timer()
-                with ThreadPoolExecutor() as executor:
-                    future_to_idx = {executor.submit(generate_solution, idx): idx for idx in range(len(solutions))}
-                    for future in as_completed(future_to_idx):
-                        drawnSolutions_parallel.append(future.result())
-                timeAfterPrint_parallel = timer()
-                timeTookPrint_parallel = timeAfterPrint_parallel - timeBeforePrint_parallel
-                print(f"Time taken with parallelism: {timeTookPrint_parallel} seconds")
+            # Parallelized code.
+            drawnSolutions_parallel = []
+            timeBeforePrint_parallel = timer()
+            with ThreadPoolExecutor() as executor:
+                future_to_idx = {executor.submit(generate_solution, idx): idx for idx in range(len(solutions))}
+                for future in as_completed(future_to_idx):
+                    drawnSolutions_parallel.append(future.result())
+            timeAfterPrint_parallel = timer()
+            timeTookPrint_parallel = timeAfterPrint_parallel - timeBeforePrint_parallel
+            print(f"Time taken with parallelism: {timeTookPrint_parallel} seconds")
 
-                # print(len(drawnSolutions) + " vs " + len(drawnSolutions_parallel))
-                # print("Here are some solutions from paralel: ")
-                # cv.imwrite("iazimaT0.png", drawnSolutions_parallel[0])
-                # cv.imwrite("iazimaT1.png", drawnSolutions_parallel[1])
-                # hashes = computeAllHashes(drawnSolutions)
-                # print("no way?: ", hashes)
-                #
-                # indexBest, d = findBestSolutionWithHashes(hashes, targetHash)
-                # print("which one?: ", indexBest)
-                # timeInSSIM = timer()
-                # bestImg, ssim = findBestSolutionSSIM(drawnSolutions, boardImg)
-                # timeOutSSIM = timer()
-                # timeSSIM = timeOutSSIM - timeInSSIM
-                print("Got here!")
-                timeInNCC = timer()
-                bestImg, ncc = findBestSolutionNCC(drawnSolutions_parallel, boardImg)
-                timeOutNCC = timer()
-                timeNCC = timeOutNCC - timeInNCC
-                print(ncc)
-                # print("SSIM: ", timeSSIM)
-                print("NCC: ", timeNCC)
-                # cv.imwrite("iazima.png", drawnSolutions[indexBest])
-                cv.imwrite("iazima.png", bestImg)
-                # printJigsawOptimised(puzzleSolver.getOutput(), puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h,0, rows, columns)
-                rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
+            # print(len(drawnSolutions) + " vs " + len(drawnSolutions_parallel))
+            # print("Here are some solutions from paralel: ")
+            # cv.imwrite("iazimaT0.png", drawnSolutions_parallel[0])
+            # cv.imwrite("iazimaT1.png", drawnSolutions_parallel[1])
+            # hashes = computeAllHashes(drawnSolutions)
+            # print("no way?: ", hashes)
+            #
+            # indexBest, d = findBestSolutionWithHashes(hashes, targetHash)
+            # print("which one?: ", indexBest)
+            # timeInSSIM = timer()
+            # bestImg, ssim = findBestSolutionSSIM(drawnSolutions, boardImg)
+            # timeOutSSIM = timer()
+            # timeSSIM = timeOutSSIM - timeInSSIM
+            print("Got here!")
+            timeInNCC = timer()
+            bestImg, ncc = findBestSolutionNCC(drawnSolutions_parallel, boardImg)
+            timeOutNCC = timer()
+            timeNCC = timeOutNCC - timeInNCC
+            print(ncc)
+            # print("SSIM: ", timeSSIM)
+            print("NCC: ", timeNCC)
+            ncc = timeNCC
+            chooserTimeOut = timer()
+            # cv.imwrite("iazima.png", drawnSolutions[indexBest])
+            chooserTimeTotal = chooserTimeOut - chooserTimeIn
+            cv.imwrite("iazima.png", bestImg)
+            # printJigsawOptimised(puzzleSolver.getOutput(), puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h,0, rows, columns)
+            rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
 
-                # Display the RGB array using Matplotlib
+            # Display the RGB array using Matplotlib
+            if show:
                 plt.imshow(rgbArray)
                 plt.axis('off')  # Turn off axis labels
                 plt.show()
 
         print("Puzzle is solvable.")
     else:
+        jigsawSuccess = False
         print("Something is or went wrong with the puzzle.")
 
     timeStopProject = timer()
@@ -296,6 +307,11 @@ def main():
     # subdirs = ['BKT', 'DLX', 'DLX-CPP']
 
     baseName = os.path.splitext(os.path.basename(args['image']))[0]
+
+    # nameC = '_no_colour'
+    # if colour:
+    #     nameC = '_colour'
+
     fileName = baseName + '.txt'
 
     if bkt >= 0:
@@ -306,7 +322,14 @@ def main():
         else:
             dir = os.path.join(dir, 'DLX')
 
+    if colour:
+        dir = os.path.join(dir, 'Colour')
+    else:
+        dir = os.path.join(dir, 'No-Colour')
+
     outputFile = os.path.join(dir, fileName)
+
+    numPieces = len(puzzleSolver.getDictPieces().keys())
 
     timesTaken = [
         {"label": "PreProcessing", "time": prep.getTimeTaken()},
@@ -314,7 +337,14 @@ def main():
         {"label": "Rotating Pieces", "time": rotator.getTimeTaken()},
         {"label": "Processing Pieces into Grids", "time": processor.getTimeTaken()},
         {"label": "Solving the Puzzle", "time": puzzleSolver.getTimeTaken()},
+        {"label": "First BKT solution found at ", "time": puzzleSolver.getFirstSolTime()},
+        {"label": "Choosing the best solution for Jigsaw", "time": chooserTimeTotal},
         {"label": "Total time", "time": timeTakenProject},
+        {"label": "Jigsaw Success", "time": jigsawSuccess},
+        {"label": "Pieces", "time": numPieces},
+        {"label": "NCC", "time": ncc},
+        {"label": "Possible Solutions", "time": possibleSols}
+
     ]
 
     try:

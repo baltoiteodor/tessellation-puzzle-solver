@@ -7,6 +7,7 @@ from puzzle_solver.helper import *
 from timeit import default_timer as timer
 import numpy as np
 import cv2
+import copy
 
 # Initial thresholds for colour matching jigsaw pieces.
 # 1
@@ -21,7 +22,8 @@ COLOURTHRESHOLDX = 20
 COLOURTHRESHOLDTHUMB = 30
 # 38
 COLOURTHRESHOLDHOLE = 40
-
+def arrayToTuple(array):
+    return tuple(tuple(row) for row in array)
 
 class Solver:
     def __init__(self, logger: bool, image, bkt: int, dlx: int, colour: bool, cpp: bool, jigsaw: bool,
@@ -44,10 +46,16 @@ class Solver:
         self._boardPiece = None
         # For jigsaw mode, all possible solutions to the puzzle.
         self._allSolutions = []
+        self._bktOutcome = False
+        self._bktAllSolutions = []
+        self._alreadySol = {}
+        self._colourPairsDictionary = {}
+
 
     # The solve method will take as input an array of 2d arrays representing puzzle pieces and try to solve the puzzle.
     def solveBackTracking(self, pieces: Pieces):
         self._startTime = timer()
+        self._firstSolTime = timer()
         if self._logger:
             print("Entering Solver class...")
 
@@ -130,7 +138,18 @@ class Solver:
         if self._bkt == 0:
             outcome = self._backtrackNoOptimisation(startingBoard, board, outputMatrix, pieces, 0, 0)
         elif self._bkt == 1:
-            outcome = self._backtrackRotationOptimisation(startingBoard, board, outputMatrix, pieces, 0, 0)
+            self._backtrackRotationOptimisation(startingBoard, board, outputMatrix, pieces, 0, 0)
+            outcome = self._bktOutcome
+            self._endTime = timer()
+            if len(self._bktAllSolutions) != 0:
+                outputMatrix = self._bktAllSolutions[0]
+                # print(len(self._bktAllSolutions))
+                if self._logger:
+                    print("Puzzle completed successfully.")
+                    print(f"Exiting Solver class: {self._endTime - self._startTime}...")
+                    print("---")
+                    print("----------------------------")
+                    print("---")
         elif self._dlx != -1:
             outcome = self._DLX(boardPiece, pieces, self._dlx, outputMatrix)
 
@@ -199,19 +218,32 @@ class Solver:
         return False
 
     # Pre-calculates all rotations.
+
     def _backtrackRotationOptimisation(self, currentBoard: Board, board: Board, outputMatrix: Board,
                                        pieces: Pieces, currRow: int, currCol: int):
+        # # TODO: Del this
+        # if self._bktOutcome:
+        #     return
         # Get the first 0 in the grid as updated position.
         row, col = nextPos(currentBoard, currRow, currCol)
         if self._used == self._size and row == -1 and col == -1:  # A.k.a. outside the grid and no pieces left.
-            self._endTime = timer()
-            if self._logger:
-                print("Puzzle completed successfully.")
-                print(f"Exiting Solver class: {self._endTime - self._startTime}...")
-                print("---")
-                print("----------------------------")
-                print("---")
-            return True
+            if not self._bktOutcome:
+                self._firstSolTime = timer()
+            self._bktOutcome = True
+            solTuple = arrayToTuple(outputMatrix)
+            if solTuple not in self._alreadySol:
+                copyM = copy.deepcopy(outputMatrix)
+                self._bktAllSolutions.append(copyM)
+                self._alreadySol[solTuple] = True
+            # return
+        # print("sol")
+            # prettyPrintGrid(outputMatrix)
+            # if self._logger:
+            #     print("Puzzle completed successfully.")
+            #     print(f"Exiting Solver class: {self._endTime - self._startTime}...")
+            #     print("---")
+            #     print("----------------------------")
+            #     print("---")
 
         # Try all possible pieces (with different rotations as well).
         for i in range(self._size):
@@ -221,35 +253,35 @@ class Solver:
                 continue
             # Move to next position with the remaining pieces if at least one rotation is valid.
             rgLen = self._pickRangeOptimiser(piece)
+            # if piece.orderNum() == 1:
+            # print("ALEEE", rgLen)
             for _ in range(rgLen):
                 decision, newRow, newCol = isValid(currentBoard, board, self._colourMap,
-                                                   piece, row, col, self._colourMatters)
-                # if self._logger and newRow == 0 and newCol == 0 and piece.orderNum() == 6:
-                #     print(f"Trying piece {piece} in position {row, col}. \nWIth current board")
-                #     prettyPrintGrid(currentBoard)
+                                                   piece, row, col, self._colourMatters, self._colourPairsDictionary)
                 if decision:
+                    # print("before")
+                    # prettyPrintGrid(outputMatrix)
                     setPiece(currentBoard, board, outputMatrix, piece, newRow, newCol)
-                    # if len(pieces) >= 3:
-                    #     print("Heh")
-                    #     prettyPrintGrid(outputMatrix)
-                    # Remove from list of pieces.
+                    # print("a")
+                    # prettyPrintGrid(outputMatrix)
                     self._sol[i] = 1
                     self._used += 1
-                    if self._backtrackRotationOptimisation(currentBoard, board, outputMatrix, pieces, newRow, newCol):
-                        return True
+                    self._backtrackRotationOptimisation(currentBoard, board, outputMatrix, pieces, newRow, newCol)
                     self._sol[i] = 0
                     self._used -= 1
-
                     # Backtrack, remove the piece.
-                    removePiece(currentBoard, piece, newRow, newCol)
+                    removePiece(currentBoard, outputMatrix, piece, newRow, newCol)
+                    # print("b")
+                    # prettyPrintGrid(outputMatrix)
                 rotatePiece(piece)
-
-        return False
 
     def adaptiveThresh(self, converter, labels, rows, boardPiece, outputMatrix, width, COLOURTHRESHOLDX,
                        COLOURTHRESHOLDTHUMB, COLOURTHRESHOLDHOLE):
+        # converter.setThresholds(0, 1, 1, COLOURTHRESHOLDX, COLOURTHRESHOLDTHUMB, COLOURTHRESHOLDHOLE)
+        # width = converter.constructMatrix()
+        # labels, rows = converter.getPyPy()
         outcome = self._solveDLXCPP(labels, rows, boardPiece, outputMatrix, width)
-        if 100 > outcome > 0:
+        if 150 > outcome > 0:
             return outcome
         threshX = COLOURTHRESHOLDX
         threshThumb = COLOURTHRESHOLDTHUMB
@@ -259,7 +291,7 @@ class Solver:
         threshThumbBest = COLOURTHRESHOLDTHUMB
         threshHoleBest = COLOURTHRESHOLDHOLE
 
-        minOutcome = 10000
+        minOutcome = 11000
         while outcome > 400:
             threshX -= 3
             threshThumb -= 3
@@ -273,12 +305,12 @@ class Solver:
                 threshXBest = threshX
                 threshThumbBest = threshThumb
                 threshHoleBest = threshHole
-            if 30 > outcome > 0:
+            if 150 > outcome > 0:
                 return outcome
 
         lastTestNum = 10
         good = False
-        for it in range(20):
+        for it in range(30):
             if outcome == 0:
                 # Maybe time it by an increasing factor?
                 if not good:
@@ -313,10 +345,10 @@ class Solver:
                 threshThumbBest = threshThumb
                 threshHoleBest = threshHole
 
-            if 30 > outcome > 0:
+            if 150 > outcome > 0:
                 return outcome
 
-        print("Best stuff: ", threshXBest, threshThumbBest, threshHoleBest)
+        # print("Best stuff: ", threshXBest, threshThumbBest, threshHoleBest)
         converter.setThresholds(1, 1, 1, threshXBest, threshThumbBest, threshHoleBest)
         width = converter.constructMatrix()
         labels, rows = converter.getPyPy()
@@ -326,6 +358,8 @@ class Solver:
 
     def _DLX(self, boardPiece: Piece, pieces: Pieces, version, outputMatrix):
         converter = ExactCoverConverter(boardPiece, pieces, self._colourMap, version, self._colourMatters, self._jigsaw)
+        if self._cpp:
+            converter.setThresholds(0, 1, 1, COLOURTHRESHOLDX, COLOURTHRESHOLDTHUMB, COLOURTHRESHOLDHOLE)
         width = converter.constructMatrix()
         if self._logger:
             converter.printMatrix()
@@ -338,8 +372,14 @@ class Solver:
         if self._cpp:
             labels, rows = converter.getPyPy()
             # Perform adaptive thresholding.
-            outcome = self.adaptiveThresh(converter, labels, rows, boardPiece, outputMatrix, width, COLOURTHRESHOLDX,
-                                          COLOURTHRESHOLDTHUMB, COLOURTHRESHOLDHOLE)
+            if self._jigsaw:
+                outcome = self.adaptiveThresh(converter, labels, rows, boardPiece, outputMatrix, width, COLOURTHRESHOLDX,
+                                              COLOURTHRESHOLDTHUMB, COLOURTHRESHOLDHOLE)
+                if outcome > 11000:
+                    return 0
+            else:
+                outcome = self._solveDLXCPP(labels, rows, boardPiece, outputMatrix, width)
+
         self._endTime = timer()
         self._dictOfColours = converter.getDict()
         if outcome and self._logger:
@@ -464,3 +504,9 @@ class Solver:
 
     def getColourDict(self):
         return self._dictOfColours
+
+    def getAllBKT(self):
+        return self._bktAllSolutions
+
+    def getFirstSolTime(self):
+        return self._firstSolTime - self._startTime

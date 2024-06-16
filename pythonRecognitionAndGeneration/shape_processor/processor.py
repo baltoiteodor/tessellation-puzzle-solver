@@ -33,7 +33,7 @@ def colourCenteredAt(image, center):
     return r // num, g // num, b // num
 
 def fillTwos(grid):
-    print("GRRR: ", grid)
+    # print("GRRR: ", grid)
     r = len(grid)
     c = len(grid[0])
     ti = 0
@@ -65,7 +65,7 @@ def fillTwos(grid):
     if grid[ti][tj] == 1:
         grid[ti][tj] = 2
 
-    print("Result: ", grid)
+    # print("Result: ", grid)
     return grid
 
 
@@ -269,16 +269,16 @@ class Processor:
             closestPoint = findClosestContourPoint(contour.getOriginalContour(), np.array(topLeft))
 
             # Create an image to draw the contour and the closest point
-            img = np.zeros((y+h+10, x+w+10, 3), dtype=np.uint8)
-            adjustedC = contour.getOriginalContour() - (x, y)
+            # img = np.zeros((y+h+10, x+w+10, 3), dtype=np.uint8)
+            # adjustedC = contour.getOriginalContour() - (x, y)
             # Draw the contour
-            cv.drawContours(img, [adjustedC], -1, (0, 255, 0), 2)  # Green contour
+            # cv.drawContours(img, [adjustedC], -1, (0, 255, 0), 2)  # Green contour
 
             # Draw a circle at the closest point
-            adjusted_closest_point = (closestPoint[0] - x, closestPoint[1] - y)
-            cv.circle(img, adjusted_closest_point, 5, (0, 0, 255), -2)  # Red circle
-            adjusted_closest_point = (closestPoint[0] - x - unitLen, closestPoint[1] - y - unitLen)
-            cv.circle(img, adjusted_closest_point, 5, (0, 0, 255), -2)  # Red circle
+            # adjusted_closest_point = (closestPoint[0] - x, closestPoint[1] - y)
+            # cv.circle(img, adjusted_closest_point, 5, (0, 0, 255), -2)  # Red circle
+            # adjusted_closest_point = (closestPoint[0] - x - unitLen, closestPoint[1] - y - unitLen)
+            # cv.circle(img, adjusted_closest_point, 5, (0, 0, 255), -2)  # Red circle
 
             ### Report purposes.
 
@@ -302,12 +302,12 @@ class Processor:
 
             ###
 
-            for row in range(6):
-                for col in range(6):
-                    centreX = closestPoint[0] - x - unitLen + row * unitLen
-                    centreY = closestPoint[1] - y - unitLen + col * unitLen
-                    centreUnit = (int(centreX), int(centreY))
-                    cv.circle(img, centreUnit, 5, (0, 0, 255), -2)  # Red circle
+            # for row in range(6):
+            #     for col in range(6):
+            #         centreX = closestPoint[0] - x - unitLen + row * unitLen
+            #         centreY = closestPoint[1] - y - unitLen + col * unitLen
+            #         centreUnit = (int(centreX), int(centreY))
+            #         cv.circle(img, centreUnit, 5, (0, 0, 255), -2)  # Red circle
 
 
             # After obtaining the closest point, this will also be the top left corner of the jigsaw piece. Hence, we

@@ -1,0 +1,9 @@
+Label	Time
+PreProcessing	0.014739999999999975
+Contour Finding	0.023041300000000042
+Rotating Pieces	0
+Processing Pieces into Grids	1.0836404000000002
+Solving the Puzzle	2.6315233
+Choosing the best solution for Jigsaw	0.03462840000000078
+Total time	3.7983506000000005
+Jigsaw Success	True
