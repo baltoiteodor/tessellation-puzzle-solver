@@ -17,11 +17,11 @@ FAULTYNUMTHUMB = 1
 # 1
 FAULTYNUMHOLES = 1
 # 36
-COLOURTHRESHOLDX = 20
+COLOURTHRESHOLDX = 30
 # 42
-COLOURTHRESHOLDTHUMB = 30
+COLOURTHRESHOLDTHUMB = 40
 # 38
-COLOURTHRESHOLDHOLE = 40
+COLOURTHRESHOLDHOLE = 50
 def arrayToTuple(array):
     return tuple(tuple(row) for row in array)
 
@@ -115,9 +115,9 @@ class Solver:
             print(f"Puzzle Board:")
             print(board)
             print("Colour map for board:\n", self._colourMap)
-            plt.imshow(self._colourMap)
-            plt.axis('off')  # Turn off axis labels
-            plt.show()
+            # plt.imshow(self._colourMap)
+            # plt.axis('off')
+            # plt.show()
         self._boardPiece = boardPiece
         # Remember colours of pieces.
         piecesColour = [pc.getColour() for pc in pieces]
@@ -296,7 +296,7 @@ class Solver:
             threshX -= 3
             threshThumb -= 3
             threshHole -= 3
-            converter.setThresholds(0, 1, 1, threshX, threshThumb, threshHole)
+            converter.setThresholds(0, 0, 1, threshX, threshThumb, threshHole)
             width = converter.constructMatrix()
             labels, rows = converter.getPyPy()
             outcome = self._solveDLXCPP(labels, rows, boardPiece, outputMatrix, width)
@@ -338,7 +338,6 @@ class Solver:
             width = converter.constructMatrix()
             labels, rows = converter.getPyPy()
             outcome = self._solveDLXCPP(labels, rows, boardPiece, outputMatrix, width)
-
             if minOutcome > outcome > 0:
                 minOutcome = outcome
                 threshXBest = threshX
@@ -359,7 +358,7 @@ class Solver:
     def _DLX(self, boardPiece: Piece, pieces: Pieces, version, outputMatrix):
         converter = ExactCoverConverter(boardPiece, pieces, self._colourMap, version, self._colourMatters, self._jigsaw)
         if self._cpp:
-            converter.setThresholds(0, 1, 1, COLOURTHRESHOLDX, COLOURTHRESHOLDTHUMB, COLOURTHRESHOLDHOLE)
+            converter.setThresholds(FAULTYNUMX, FAULTYNUMTHUMB, FAULTYNUMHOLES, COLOURTHRESHOLDX, COLOURTHRESHOLDTHUMB, COLOURTHRESHOLDHOLE)
         width = converter.constructMatrix()
         if self._logger:
             converter.printMatrix()

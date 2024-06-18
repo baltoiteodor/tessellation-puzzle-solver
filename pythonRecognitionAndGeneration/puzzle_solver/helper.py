@@ -795,8 +795,8 @@ def similarColoursJigsaw(colour1, colour2, dict, ct):
     if pair in dict:
         return dict[pair] < ct
 
-    lab1 = convert_color(sRGBColor(colour1[2], colour1[1], colour1[0]), LabColor)
-    lab2 = convert_color(sRGBColor(colour2[2], colour2[1], colour2[0]), LabColor)
+    lab1 = convert_color(sRGBColor(colour1[0], colour1[1], colour1[2]), LabColor)
+    lab2 = convert_color(sRGBColor(colour2[0], colour2[1], colour2[2]), LabColor)
     # lab1 = LabColor(colour1[0], colour1[1], colour1[2])
     # lab2 = LabColor(colour2[0], colour2[1], colour2[2])
     distance = delta_e_cie2000(lab1, lab2)

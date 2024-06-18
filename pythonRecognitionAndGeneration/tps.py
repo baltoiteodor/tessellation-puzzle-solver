@@ -1,6 +1,3 @@
-# Parser for arguments and potentially flags. 
-
-# Specify desired arguments.
 import argparse
 import json
 import os
@@ -76,8 +73,7 @@ def main():
     finderLog = args["loggerFinder"]
     rotatorLog = args["loggerRotator"]
 
-    # Load image and send to shape recognition.         contours = cv.findContours(threshImage, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-
+    # Load original image.
     originalImage = cv.imread(args["image"])
 
     copyImage = originalImage
@@ -91,7 +87,6 @@ def main():
         rows = int(args["rows"])
     if args["columns"] is not None:
         columns = int(args["columns"])
-    # print(rows, columns)
 
     #
     ## Starting timer for the whole process.
@@ -99,7 +94,8 @@ def main():
 
     timeStartProject = timer()
     possibleSols = 0
-    # Testing preproc:
+
+
     prep = PreProcessor(copyImage)
     if realProc:
 
@@ -145,17 +141,15 @@ def main():
 
         copyImage = prep.getImage()
         contours = shapeFinder.detectShapes3D(copyImage, originalImage)
-
     else:
         if jigsaw:
-            # GIVE ME JIGSAW CONTOURS.
-            # prep.jigsaw2D()
+            # Preprocess images of Jigsaw puzzles and obtain their contours.
             prep.jigsaw2DV2()
             copyImage = prep.getImage()
             contours = shapeFinder.detectJigsaw(copyImage, originalImage)
         else:
+            # Preprocess images of traditional tessellation puzzles and obtain their contours.
             prep.basic2D()
-
             copyImage = prep.getImage()
             contours = shapeFinder.detectShapes2D(copyImage, originalImage)
 
@@ -164,18 +158,18 @@ def main():
     rotator = Rotator(rotatorLog | allLog)
     if not jigsaw:
         if realProc:
-            rotatedContours = rotator.rotate3D(contours, originalImage)
+            # Room for improving.
+            rotatedContours = rotator.rotate(contours, originalImage)
         else:
             rotatedContours = rotator.rotate(contours, originalImage)
 
-    # Find the units in which to break the shapes.
-    # Grid the smallest rectangle in a grid with units lxl, where l is a divisor of the smallest side.
-    # Look for the biggest l s.t. the area lost in the process is less than a given percent.
+    # Find the unit length and process the contours into grids.
     processor = Processor(rotatedContours, processorLog | allLog, jigsaw)
     if jigsaw:
         processor.findGridsJigsaw(rows, columns)
     else:
         processor.findGrids()
+
     pieces = processor.getPieces()
 
     if show:
@@ -194,8 +188,12 @@ def main():
         dlx = int(args["DLX"])
 
     nonScale = args["noScaling"]
+
+    # Instantiate the Solver with the corresponding options enabled.
     puzzleSolver = Solver(solverLog | allLog, originalImage, bkt, dlx, colour, cpp, jigsaw, nonScale)
+
     chooserTimeTotal = 0
+    # We set this to False in the case the algorithm fails to find a suitable number of potential solutions.
     jigsawSuccess = True
     ncc = 0
     if puzzleSolver.solveBackTracking(pieces):
@@ -203,78 +201,78 @@ def main():
             if not jigsaw:
                 rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
 
+                # Original way of printing the puzzle result is commented out.
+
                 # Display the RGB array using Matplotlib
                 # plt.imshow(rgbArray)
                 # plt.axis('off')  # Turn off axis labels
                 # plt.show()
                 # print(puzzleSolver.getOutput())
+
+                # Print a puzzle with outlines for each piece.
                 printTessellation(puzzleSolver.getOutput(), puzzleSolver.getDictPieces())
 
         if jigsaw:
-            # print("Check this: ", puzzleSolver.getAllSolutions())
+            # Solving jigsaw puzzles.
             boardP = puzzleSolver.getBoardPiece()
-            # cv.imwrite("boardP.png", boardP.getOriginalContour().getImage())
             boardImg = boardP.getOriginalContour().getImage()
-            # targetHash = computeHash(boardImg)
             h, w = boardImg.shape[:2]
             solutions = puzzleSolver.getAllSolutions()
+
             if len(solutions) == 0:
                 jigsawSuccess = False
+
             possibleSols = len(solutions)
             colourDictionary = puzzleSolver.getColourDict()
+
             chooserTimeIn = timer()
+
+            # Uncomment these to enable sequentially choosing the best solution.
+
             # drawnSolutions = []
             # timeBeforePrint = timer()
-            # timeTT = 0
-            # timeTTr = 0
-            # timeefff = 0
 
             # for idx in range(len(solutions)):
             #     currSol, timeTk, timfff, incr = printJigsawOptimised(solutions[idx], puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h, idx, rows, columns, colourDictionary)
-                # timeTT += timeTk
-                # timeTTr += timfff
-                # timeefff += incr
                 # drawnSolutions.append(currSol)
+
             # timeAfterPrint = timer()
             # timeTookPrint = timeAfterPrint - timeBeforePrint
             # print("time took printing with no parallelism: ", timeTookPrint)
-            # print("TT: ", timeTT)
-            # print("TTf: ", timeTTr)
-            # print("incr: ", timeefff)
-            # print(solutions)
+
             def generate_solution(idx):
                 return printJigsawOptimised(solutions[idx], puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h, idx, rows, columns, colourDictionary)
 
-            # Parallelized code.
-            drawnSolutions_parallel = []
-            timeBeforePrint_parallel = timer()
+            # Parallelised choosing of best option.
+            drawnSolutionsParallel = []
+            timeBeforePrintParallel = timer()
             with ThreadPoolExecutor() as executor:
                 future_to_idx = {executor.submit(generate_solution, idx): idx for idx in range(len(solutions))}
                 for future in as_completed(future_to_idx):
-                    drawnSolutions_parallel.append(future.result())
-            timeAfterPrint_parallel = timer()
-            timeTookPrint_parallel = timeAfterPrint_parallel - timeBeforePrint_parallel
-            print(f"Time taken with parallelism: {timeTookPrint_parallel} seconds")
+                    drawnSolutionsParallel.append(future.result())
+            timeAfterPrintParallel = timer()
+            timeTookPrintParallel = timeAfterPrintParallel - timeBeforePrintParallel
+            print(f"Time taken with parallelism: {timeTookPrintParallel} seconds")
 
-            # print(len(drawnSolutions) + " vs " + len(drawnSolutions_parallel))
+            # print(len(drawnSolutions) + " vs " + len(drawnSolutionsParallel))
             # print("Here are some solutions from paralel: ")
-            # cv.imwrite("iazimaT0.png", drawnSolutions_parallel[0])
-            # cv.imwrite("iazimaT1.png", drawnSolutions_parallel[1])
+            # cv.imwrite("iazimaT0.png", drawnSolutionsParallel[0])
+            # cv.imwrite("iazimaT1.png", drawnSolutionsParallel[1])
             # hashes = computeAllHashes(drawnSolutions)
             # print("no way?: ", hashes)
             #
             # indexBest, d = findBestSolutionWithHashes(hashes, targetHash)
             # print("which one?: ", indexBest)
             # timeInSSIM = timer()
-            # bestImg, ssim = findBestSolutionSSIM(drawnSolutions, boardImg)
+            # bestImg, ssim = findBestSolutionSSIM(drawnSolutionsParallel, boardImg)
             # timeOutSSIM = timer()
             # timeSSIM = timeOutSSIM - timeInSSIM
-            print("Got here!")
+            # print("Got here!")
             timeInNCC = timer()
-            bestImg, ncc = findBestSolutionNCC(drawnSolutions_parallel, boardImg)
+            bestImg, ncc = findBestSolutionNCC(drawnSolutionsParallel, boardImg)
             timeOutNCC = timer()
             timeNCC = timeOutNCC - timeInNCC
-            print(ncc)
+            # print(ncc)
             # print("SSIM: ", timeSSIM)
             print("NCC: ", timeNCC)
             ncc = timeNCC
@@ -331,6 +329,16 @@ def main():
 
     numPieces = len(puzzleSolver.getDictPieces().keys())
 
+    success, encodedImage = cv2.imencode('.png', originalImage)
+    imageSizeKB = 0
+    if success:
+        # Get the size of the encoded image in bytes
+        image_size_bytes = len(encodedImage.tobytes())
+
+        # Convert the size to kilobytes
+        imageSizeKB = image_size_bytes / 1024
+
+
     timesTaken = [
         {"label": "PreProcessing", "time": prep.getTimeTaken()},
         {"label": "Contour Finding", "time": shapeFinder.getTimeTaken()},
@@ -343,7 +351,8 @@ def main():
         {"label": "Jigsaw Success", "time": jigsawSuccess},
         {"label": "Pieces", "time": numPieces},
         {"label": "NCC", "time": ncc},
-        {"label": "Possible Solutions", "time": possibleSols}
+        {"label": "Possible Solutions", "time": possibleSols},
+        {"label": "Image size", "time": imageSizeKB}
 
     ]
 

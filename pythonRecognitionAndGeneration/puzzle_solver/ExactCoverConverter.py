@@ -105,7 +105,7 @@ class ExactCoverConverter:
             self.PyPyMatrixNotOptimised(boardSize, width)
         elif self._version == 2:
             self.PyPyMatrixOptimised(boardSize, width)
-        print(self._COLOURTHRESHOLDHOLE, self._COLOURTHRESHOLDX)
+        print(self._COLOURTHRESHOLDX, self._COLOURTHRESHOLDTHUMB, self._COLOURTHRESHOLDHOLE, self._FAULTYNUMX, self._FAULTYNUMTHUMB, self._FAULTYNUMHOLES)
         return width
 
     def PyPyMatrixOptimised(self, boardSize, width):
@@ -161,7 +161,6 @@ class ExactCoverConverter:
                 if self._jigsaw and piece.pixelAt(r - row, c - col) == 0 and self._jigsawTwosBoard[r][c] == 0:
                     if r == 0 or c == 0 or r == self._boardPiece.rows() - 1 or c == self._boardPiece.columns() - 1:
                         return False
-
                 timeIn = timer()
                 # If jigsaw and we deal with a hole.
                 # print(piece.getColourAt(r - row, c - col))

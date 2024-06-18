@@ -68,6 +68,39 @@ def fillTwos(grid):
     # print("Result: ", grid)
     return grid
 
+def findFurthestPointHorizontal(contour, startPoint, yThreshold):
+    furthestPoint = startPoint
+    maxDistance = -1
+
+    for point in contour:
+        point = point[0]
+        # Check if the point is within the yThreshold
+        if abs(point[1] - startPoint[1]) <= yThreshold:
+            # Check if this point is further to the right
+            if point[0] > startPoint[0]:
+                distance = point[0] - startPoint[0]
+                if distance > maxDistance:
+                    maxDistance = distance
+                    furthestPoint = point
+
+    return tuple(furthestPoint)
+
+def findFurthestPointVertical(contour, startPoint, xThreshold):
+    furthestPoint = startPoint
+    maxDistance = -1
+
+    for point in contour:
+        point = point[0]
+        # Check if the point is within the xThreshold
+        if abs(point[0] - startPoint[0]) <= xThreshold:
+            # Check if this point is further down
+            if point[1] > startPoint[1]:
+                distance = point[1] - startPoint[1]
+                if distance > maxDistance:
+                    maxDistance = distance
+                    furthestPoint = point
+
+    return tuple(furthestPoint)
 
 class Processor:
     def __init__(self, contours, logger: bool, jigsawMode: bool):
@@ -242,12 +275,24 @@ class Processor:
                 leftJig = findClosestContourPoint(contour.getOriginalContour(), np.array(topLeft))
                 topRight = (x + w, y)
                 rightJig = findClosestContourPoint(contour.getOriginalContour(), np.array(topRight))
+                # Calculate the right corner in a different manner.
+                diffTryRight = findFurthestPointHorizontal(contour.getOriginalContour(), leftJig, 3)
+
+                if diffTryRight != rightJig:
+                    rightJig = diffTryRight
+
                 pieceW = rightJig[0] - leftJig[0]
                 accUnit = pieceW / 3
                 scalerW = unitLen / accUnit
 
                 botLeft = (x, y + h)
+
                 leftBotJig = findClosestContourPoint(contour.getOriginalContour(), np.array(botLeft))
+                diffTryBotJig = findFurthestPointVertical(contour.getOriginalContour(), leftJig, 3)
+
+                if diffTryBotJig != leftBotJig:
+                    leftBotJig = diffTryBotJig
+
                 pieceH = leftBotJig[1] - leftJig[1]
                 accUnit = pieceH / 3
                 scalerH = unitLen / accUnit
@@ -257,12 +302,20 @@ class Processor:
                 targetPieceW = int(w * scalerW)
                 targetPieceH = int(h * scalerH)
                 newCont, newImg = resizeToDimensions(image, contour.getContour(), targetPieceW, targetPieceH)
-                # cv.imwrite(f"debuggingScalingPieces/contour{i}.png", newImg)
+
+
+                # im = image.copy()
+                # cv.circle(im, rightJig, radius=5, color=(0, 0, 255), thickness=-1)
+                # cv.circle(im, diffTryRight, radius=5, color=(0, 255, 0), thickness=-1)
+                # cv.circle(im, diffTryBotJig, radius=5, color=(0, 255, 0), thickness=-1)
+                # cv.imwrite(f"contour{i}Jig.png", im)
+
+                # cv.imwrite(f"contour{i}.png", newImg)
                 self._contours[i] = Contour(newCont, newImg, 0)
 
 
         # Will trim this grid after matching with piece.
-        for contour in self._contours:
+        for i, contour in enumerate(self._contours):
             # print("Hm: ", contour, contour.getArea())
             x, y, w, h = contour.getBoundingRect()
             topLeft = (x, y)
@@ -357,6 +410,7 @@ class Processor:
             newPiece.canBeBoard(noOnes == newPiece.area(), self._jigsawMode)
 
             image = contour.getImage()
+            # cv.imwrite(f"what{i}.png", image)
             blurredImage = cv.GaussianBlur(image, (45, 45), 0)
 
             newPiece.computeColourGrid(blurredImage, copyGrid)
