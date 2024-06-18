@@ -240,50 +240,46 @@ def main():
             # timeTookPrint = timeAfterPrint - timeBeforePrint
             # print("time took printing with no parallelism: ", timeTookPrint)
 
-            def generate_solution(idx):
+            def generateSolution(idx):
                 return printJigsawOptimised(solutions[idx], puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h, idx, rows, columns, colourDictionary)
 
             # Parallelised choosing of best option.
             drawnSolutionsParallel = []
             timeBeforePrintParallel = timer()
             with ThreadPoolExecutor() as executor:
-                future_to_idx = {executor.submit(generate_solution, idx): idx for idx in range(len(solutions))}
-                for future in as_completed(future_to_idx):
+                futureToIdx = {executor.submit(generateSolution, idx): idx for idx in range(len(solutions))}
+                for future in as_completed(futureToIdx):
                     drawnSolutionsParallel.append(future.result())
             timeAfterPrintParallel = timer()
             timeTookPrintParallel = timeAfterPrintParallel - timeBeforePrintParallel
             print(f"Time taken with parallelism: {timeTookPrintParallel} seconds")
 
-            # print(len(drawnSolutions) + " vs " + len(drawnSolutionsParallel))
-            # print("Here are some solutions from paralel: ")
-            # cv.imwrite("iazimaT0.png", drawnSolutionsParallel[0])
-            # cv.imwrite("iazimaT1.png", drawnSolutionsParallel[1])
+            # Uncomment to choose the best solution with pHash or SSIM.
+
             # hashes = computeAllHashes(drawnSolutions)
-            # print("no way?: ", hashes)
-            #
             # indexBest, d = findBestSolutionWithHashes(hashes, targetHash)
-            # print("which one?: ", indexBest)
             # timeInSSIM = timer()
             # bestImg, ssim = findBestSolutionSSIM(drawnSolutionsParallel, boardImg)
             # timeOutSSIM = timer()
             # timeSSIM = timeOutSSIM - timeInSSIM
-            # print("Got here!")
+            # print("SSIM: ", timeSSIM)
+
             timeInNCC = timer()
             bestImg, ncc = findBestSolutionNCC(drawnSolutionsParallel, boardImg)
             timeOutNCC = timer()
             timeNCC = timeOutNCC - timeInNCC
-            # print(ncc)
-            # print("SSIM: ", timeSSIM)
+
             print("NCC: ", timeNCC)
             ncc = timeNCC
             chooserTimeOut = timer()
-            # cv.imwrite("iazima.png", drawnSolutions[indexBest])
-            chooserTimeTotal = chooserTimeOut - chooserTimeIn
-            cv.imwrite("iazima.png", bestImg)
-            # printJigsawOptimised(puzzleSolver.getOutput(), puzzleSolver.getDictPieces(), originalImage, puzzleSolver.getColourMap(), w, h,0, rows, columns)
-            rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
 
-            # Display the RGB array using Matplotlib
+
+            chooserTimeTotal = chooserTimeOut - chooserTimeIn
+
+            cv.imwrite("jigsawSolution.png", bestImg)
+
+            # Tease a rough sketch of the solution.
+            rgbArray = np.array(puzzleSolver.getSolution()).astype(np.uint8)
             if show:
                 plt.imshow(rgbArray)
                 plt.axis('off')  # Turn off axis labels
@@ -294,24 +290,21 @@ def main():
         jigsawSuccess = False
         print("Something is or went wrong with the puzzle.")
 
+
     timeStopProject = timer()
     timeTakenProject = timeStopProject - timeStartProject
 
     #
-    ## Print statistics in corresponding file.
+    ## Print statistics about times taken in each step of the system in a corresponding file.
     #
 
     dir = 'Evaluation'
-    # subdirs = ['BKT', 'DLX', 'DLX-CPP']
 
     baseName = os.path.splitext(os.path.basename(args['image']))[0]
 
-    # nameC = '_no_colour'
-    # if colour:
-    #     nameC = '_colour'
-
     fileName = baseName + '.txt'
 
+    # Place the statistics in the corresponding subdirectory based on the type of algorithm used by the Solver.
     if bkt >= 0:
         dir = os.path.join(dir, 'BKT')
     else:
@@ -320,6 +313,7 @@ def main():
         else:
             dir = os.path.join(dir, 'DLX')
 
+    # Further split into subdirectories based on the colour option.
     if colour:
         dir = os.path.join(dir, 'Colour')
     else:
@@ -327,18 +321,19 @@ def main():
 
     outputFile = os.path.join(dir, fileName)
 
+    # Retrieve the number of pieces of the puzzle based on the naming convention. (e.g. cat35.png)
     numPieces = len(puzzleSolver.getDictPieces().keys())
 
+    # Add size of the image to the statistics.
     success, encodedImage = cv2.imencode('.png', originalImage)
     imageSizeKB = 0
     if success:
-        # Get the size of the encoded image in bytes
-        image_size_bytes = len(encodedImage.tobytes())
+        # Get the size of the encoded image in bytes first.
+        imageSizeBytes = len(encodedImage.tobytes())
+        # Convert the size to KB.
+        imageSizeKB = imageSizeBytes / 1024
 
-        # Convert the size to kilobytes
-        imageSizeKB = image_size_bytes / 1024
-
-
+    # Put together all stats.
     timesTaken = [
         {"label": "PreProcessing", "time": prep.getTimeTaken()},
         {"label": "Contour Finding", "time": shapeFinder.getTimeTaken()},
@@ -356,6 +351,7 @@ def main():
 
     ]
 
+    # Write the statistics to the file.
     try:
         with open(outputFile, 'w') as file:
             file.write("Label\tTime\n")
