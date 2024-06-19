@@ -5,4 +5,8 @@ numpy
 matplotlib
 dlx
 colormath
+skimage
+imagehash
+Pillow
+scikit-image
 ###### Requirements with Version Specifiers ######
