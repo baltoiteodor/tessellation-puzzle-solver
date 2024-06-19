@@ -4,7 +4,7 @@ Individual Project - Imperial College London
 ## Running the program
 
 To run the program, cd into pythonRecognitionAndGeneration and run:
-python3 .\tps.py --image .\images\puzzle.png
+python3 .\tps.py --image .\images\puzzle_name.png
 
 To this add the following flags: \
 --show: to have a visual image of the solution. \
