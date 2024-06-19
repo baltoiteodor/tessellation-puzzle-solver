@@ -7,6 +7,11 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_subdirectory(pybind11)
 
+## Find OpenCV
+#find_package(OpenCV REQUIRED)
+#
+#include_directories(${OpenCV_INCLUDE_DIRS})
+
 set(SOURCE_FILES
         DLXCPPLinker.cpp
         dlx.cpp
@@ -14,5 +19,7 @@ set(SOURCE_FILES
 )
 
 pybind11_add_module(DLXCPP DLXCPPLinker.cpp)
+
+#target_link_libraries(DLXCPP PRIVATE ${OpenCV_LIBS})
 
 #add_executable(tpsC__ main.cpp)
