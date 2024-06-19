@@ -2,9 +2,10 @@ import os
 import subprocess
 from timeit import default_timer as timer
 
-TIMEOUT_THRESHOLD = 150
+TIMEOUTTHRESHOLD = 150
 
-folder_paths_colour = [
+# Decide what directories to solve from.
+folderPathsColour = [
     # "generated_puzzles/2x2",
     # "generated_puzzles/4x4",
     # "generated_puzzles/6x6",
@@ -18,7 +19,7 @@ folder_paths_colour = [
 
 ]
 
-folder_paths_no_colour = [
+folderPathsNoColour = [
     # "generated_puzzles/2x2",
     # "generated_puzzles/4x4",
     # "generated_puzzles/6x6",
@@ -35,7 +36,8 @@ folder_paths_no_colour = [
 
 results = {}
 
-def run_command_with_timeout(command, timeout):
+# Stop the process if it takes too long. Run the algorithm both with colour and without.
+def runCommandWithTimeout(command, timeout):
     try:
         timeStart = timer()
         subprocess.run(command, check=True, timeout=timeout)
@@ -48,64 +50,66 @@ def run_command_with_timeout(command, timeout):
         print(f"Command failed with error: {e}")
         return None
 
-for folder_path in folder_paths_no_colour:
-    example_files = os.listdir(folder_path)
+for folderPath in folderPathsNoColour:
+    exampleFiles = os.listdir(folderPath)
     totalTime = 0
     numOfRuns = 1
     for run in range(numOfRuns):
-        for example_file in example_files:
-            print(example_file)
+        # Iterate through files and run the command.
+        for exampleFile in exampleFiles:
+            print(exampleFile)
             command = [
                 'python',
                 '.\\tps.py',
-                '--image', os.path.join(folder_path, example_file),
+                '--image', os.path.join(folderPath, exampleFile),
                 # '--colour',
                 '--BKT', '1',
                 # '--show'
             ]
 
             print("Running command:", " ".join(command))
-            time_taken = run_command_with_timeout(command, TIMEOUT_THRESHOLD)
-            if time_taken is not None:
-                totalTime += time_taken
+            timeTaken = runCommandWithTimeout(command, TIMEOUTTHRESHOLD)
+            if timeTaken is not None:
+                totalTime += timeTaken
 
-    if example_files:
-        results[folder_path] = (totalTime / numOfRuns) / len(example_files)
+    if exampleFiles:
+        results[folderPath] = (totalTime / numOfRuns) / len(exampleFiles)
     else:
-        results[folder_path] = 0
+        results[folderPath] = 0
 
-    print(f"Running {folder_path} on BKT method took on average: ", results[folder_path])
+    print(f"Running {folderPath} on BKT method took on average: ", results[folderPath])
 
-for folder_path in folder_paths_colour:
-    example_files = os.listdir(folder_path)
+for folderPath in folderPathsColour:
+    exampleFiles = os.listdir(folderPath)
     totalTime = 0
     numOfRuns = 1
     for run in range(numOfRuns):
-        for example_file in example_files:
-            print(example_file)
+        # Iterate through files and run the command.
+        for exampleFile in exampleFiles:
+            print(exampleFile)
             command = [
                 'python',
                 '.\\tps.py',
-                '--image', os.path.join(folder_path, example_file),
+                '--image', os.path.join(folderPath, exampleFile),
                 '--colour',
                 '--BKT', '1',
                 # '--show'
             ]
 
             print("Running command:", " ".join(command))
-            time_taken = run_command_with_timeout(command, TIMEOUT_THRESHOLD)
-            if time_taken is not None:
-                totalTime += time_taken
+            timeTaken = runCommandWithTimeout(command, TIMEOUTTHRESHOLD)
+            if timeTaken is not None:
+                totalTime += timeTaken
 
-    if example_files:
-        results[folder_path] = (totalTime / numOfRuns) / len(example_files)
+    if exampleFiles:
+        results[folderPath] = (totalTime / numOfRuns) / len(exampleFiles)
     else:
-        results[folder_path] = 0
+        results[folderPath] = 0
 
-    print(f"Running {folder_path} on BKT method took on average: ", results[folder_path])
+    print(f"Running {folderPath} on BKT method took on average: ", results[folderPath])
 
-for folder_path in folder_paths_no_colour:
-    print(f"Running {folder_path} on BKT method took on average: ", results[folder_path])
+for folderPath in folderPathsNoColour:
+    print(f"Running {folderPath} on BKT method took on average: ", results[folderPath])
 
-for folder_path in folder_paths_colour:
-    print(f"Running {folder_path} on BKT method took on average: ", results[folder_path])
+for folderPath in folderPathsColour:
+    print(f"Running {folderPath} on BKT method took on average: ", results[folderPath])

@@ -2,7 +2,7 @@ import os
 import random
 from PIL import Image, ImageDraw
 
-# Define colors
+# Colour list.
 colors = [
     (0, 0, 255),     # Blue
     (255, 0, 0),     # Red
@@ -12,11 +12,11 @@ colors = [
     (139, 69, 19)    # Dark Brown
 ]
 
-# Helper function to rotate a piece 90 degrees clockwise
+# Helper function to rotate a piece 90 degrees clockwise.
 def rotatePiece(piece):
     return [(py, -px) for px, py in piece]
 
-# Generate all unique rotations for a piece
+# Generate all unique rotations for a piece.
 def generateRotations(piece):
     rotations = []
     current = piece
@@ -26,7 +26,8 @@ def generateRotations(piece):
             rotations.append(current)
     return rotations
 
-# Predefined set of piece types (coordinates relative to (0, 0))
+# Predefined set of piece types (coordinates relative to (0, 0)).
+# Some pieces are written multiple times to change chances of picking pieces.
 basePieceTypes = [
     [(0, 0)],  # 1-cell piece
     [(0, 0), (1, 0)],  # 2-cell piece
@@ -53,19 +54,20 @@ basePieceTypes = [
     [(0, 0), (0, 2), (1, 0), (1, 1), (1, 2), (2, 0), (2, 2)],   # H-shape piece
 ]
 
-# Generate all unique rotations for all piece types
+# Generate all unique rotations for all piece types.
 pieceTypes = []
 for basePiece in basePieceTypes:
     pieceTypes.extend(generateRotations(basePiece))
 
-# Separate 1-cell pieces from the rest
+# Separate 1-cell pieces from the rest. These will be used only to fill the board after attempting to place
+# a fixed number of random pieces.
 singleCellPieces = [piece for piece in pieceTypes if len(piece) == 1]
 multiCellPieces = [piece for piece in pieceTypes if len(piece) > 1]
 
-def isValidPiece(piece, grid, x, y, grid_size):
+def isValidPiece(piece, grid, x, y, gridSize):
     for px, py in piece:
         nx, ny = x + px, y + py
-        if nx < 0 or ny < 0 or nx >= grid_size or ny >= grid_size or grid[nx][ny] != -1:
+        if nx < 0 or ny < 0 or nx >= gridSize or ny >= gridSize or grid[nx][ny] != -1:
             return False
     return True
 
@@ -75,30 +77,32 @@ def placePiece(grid, piece, x, y, pieceId):
         grid[nx][ny] = pieceId
 
 def generatePuzzle(n):
-    grid_size = n * 4  # Create a larger grid with reduced size to avoid excessive height
-    grid = [[-1 for _ in range(grid_size)] for _ in range(grid_size)]
+    # Create a larger grid where we put both the board and the pieces.
+    gridSize = n * 4
+    grid = [[-1 for _ in range(gridSize)] for _ in range(gridSize)]
     pieces = []
     pieceId = 0
 
-    # Place pieces in the puzzle area
+    # Place pieces on the board first. Board will be the first nxn square of the grid.
     for i in range(n):
         for j in range(n):
-            placed_any = False
+            placedAny = False
             for _ in range(150):  # Attempt to place 100 pieces
                 piece = random.choice(multiCellPieces)
                 if isValidPiece(piece, grid, i, j, n):
                     placePiece(grid, piece, i, j, pieceId)
                     pieces.append((piece, random.choice(colors)))
                     pieceId += 1
-                    placed_any = True
+                    placedAny = True
                     break
-            if not placed_any:
+            # If attempting unsuccessful for 150 times, place 1x1 piece.
+            if not placedAny:
                 if isValidPiece([(0, 0)], grid, i, j, n):
                     placePiece(grid, [(0, 0)], i, j, pieceId)
                     pieces.append(([(0, 0)], random.choice(colors)))
                     pieceId += 1
 
-    # Ensure all cells in the puzzle grid are filled
+    # Ensure all cells in the puzzle grid are filled by filling with 1x1 pieces.
     for i in range(n):
         for j in range(n):
             if grid[i][j] == -1:
@@ -107,32 +111,36 @@ def generatePuzzle(n):
                 pieces.append((piece, random.choice(colors)))
                 pieceId += 1
 
-    # Place pieces under the puzzle with at least one cell spacing
-    startY = n + 1  # Start placing pieces below the puzzle
-    piece_positions = set()
+    # Board is done, place the pieces now into the larger grid.
+    # Place pieces under the puzzle with at least one cell spacing. Start right below the puzzle.
+    startY = n + 1
+    piecePositions = set()
     for idx, (piece, color) in enumerate(pieces):
-        piece_width = max(px for px, py in piece) + 1
-        piece_height = max(py for px, py in piece) + 1
-        # print("Trying this: ", piece)
+
+        # Calculate piece dimensions.
+        pieceWidth = max(px for px, py in piece) + 1
+        pieceHeight = max(py for px, py in piece) + 1
 
         placed = False
-        for i in range(startY, grid_size - piece_height + 1):
-            for j in range(0, grid_size - piece_width + 1):
+        # Attempt to place the piece in the large grid. Try to find first available position.
+        for i in range(startY, gridSize - pieceHeight + 1):
+            for j in range(0, gridSize - pieceWidth + 1):
+                # Check for all positions to be available first, then check for surroundings, for the pieces to be at
+                # least 1 cell from other pieces.
                 if all(
-                        0 <= i + py < grid_size and 0 <= j + px < grid_size and grid[i + py][j + px] == -1
+                        0 <= i + py < gridSize and 0 <= j + px < gridSize and grid[i + py][j + px] == -1
                         for px, py in piece
                 ) and all(
-                    0 <= i + py + dy < grid_size and 0 <= j + px + dx < grid_size and grid[i + py + dy][j + px + dx] == -1
+                    0 <= i + py + dy < gridSize and 0 <= j + px + dx < gridSize and grid[i + py + dy][j + px + dx] == -1
                     for dx in range(-1, 2)
                     for dy in range(-1, 2)
                     for px, py in piece
                     if not (dx == 0 and dy == 0)
                 ):
                     for px, py in piece:
-                        grid[i + py][j + px] = idx  # Use idx to correctly reference pieces
-                    piece_positions.add((i, j))
+                        grid[i + py][j + px] = idx  # Fill grid with piece ID.
+                    piecePositions.add((i, j))
                     placed = True
-                    # print("Hurray", piece)
                     break
             if placed:
                 break
@@ -140,23 +148,22 @@ def generatePuzzle(n):
     return grid, pieces
 
 def drawPuzzle(grid, pieces, filename):
-    cellSize = 20  # Reduced cell size to make the image smaller
-    grid_size = len(grid)
-    imgWidth = grid_size * cellSize
-    # for row in grid:
-    #     print(row)
-    # Calculate required height
-    total_piece_height = sum(max(py for px, py in piece) + 1 for piece, color in pieces)
-    # imgHeight = (n + total_piece_height) * cellSize
-    imgHeight = grid_size * cellSize
+    # This determines size of the final image.
+    cellSize = 20
+    gridSize = len(grid)
+
+    # Calculate sizes.
+    imgWidth = gridSize * cellSize
+    imgHeight = gridSize * cellSize
 
     img = Image.new("RGB", (imgWidth, imgHeight), "white")
     draw = ImageDraw.Draw(img)
 
-    # Draw grid without outlines
-    for i in range(grid_size):
-        for j in range(grid_size):
+    # Draw grid without outlines.
+    for i in range(gridSize):
+        for j in range(gridSize):
             if grid[i][j] != -1:
+                # Draw the cell into the image.
                 pieceId = grid[i][j]
                 color = pieces[pieceId][1]
                 x0, y0 = j * cellSize, i * cellSize
@@ -164,18 +171,18 @@ def drawPuzzle(grid, pieces, filename):
                 draw.rectangle([x0, y0, x1, y1], fill=color)
 
     img.save(filename)
-    # img.show()
 
 
 def generateAndSavePuzzles():
-    base_dir = 'generated_puzzles'
-    os.makedirs(base_dir, exist_ok=True)
-    for grid_size in range(11, 20, 2):  # From 11x11 to 19x19
-        grid_dir = os.path.join(base_dir, f'{grid_size}x{grid_size}')
-        os.makedirs(grid_dir, exist_ok=True)
+    baseDir = 'generated_puzzles'
+    os.makedirs(baseDir, exist_ok=True)
+    # Generate 20 puzzles for all sizes from 2 to 19.
+    for gridSize in range(2, 20, 1):  # From 2x2 to 19x19.
+        gridDir = os.path.join(baseDir, f'{gridSize}x{gridSize}')
+        os.makedirs(gridDir, exist_ok=True)
         for i in range(20):
-            grid, pieces = generatePuzzle(grid_size)
-            filename = os.path.join(grid_dir, f'puzzle_{grid_size}x{grid_size}_pieces{len(pieces)}_{i+1}.png')
+            grid, pieces = generatePuzzle(gridSize)
+            filename = os.path.join(gridDir, f'puzzle_{gridSize}x{gridSize}_pieces{len(pieces)}_{i+1}.png')
             drawPuzzle(grid, pieces, filename)
 
 generateAndSavePuzzles()

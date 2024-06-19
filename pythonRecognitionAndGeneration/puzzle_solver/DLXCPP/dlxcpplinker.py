@@ -8,6 +8,7 @@ from build.DLXCPP import *
 def solveDLXCPP(rows, width, jigsaw):
     solver = DLXCPPSolver(rows, width)
     if jigsaw:
+        # Stop after 25k solutions found.
         result = solver.solve(25000)
     else:
         result = solver.solve(1)

@@ -1,51 +1,57 @@
 from dlx import DLX
 
-
-# Taken from here:
-# https://gist.github.com/marekyggdrasil/a8e63be8e34e000f2507bdb5e0755dda
-
-def genInstance(labels, rows) :
+# Function to generate the instance with labels, rows, columns, and label indices.
+def genInstance(labels, rows):
     columns = []
-    indices_l = {}
-    for i in range(len(labels)) :
+    indicesL = {}
+    for i in range(len(labels)):
         label = labels[i]
-        indices_l[label] = i
-        columns.append(tuple([label,0]))
-    return labels, rows, columns, indices_l
+        indicesL[label] = i
+        columns.append((label, 0))  # Initialize columns with label and 0.
+    return labels, rows, columns, indicesL
 
-def solveInstance(instance) :
-    labels, rows, columns, indices_l = instance
-    instance = DLX(columns)
+# Function to solve the given instance using DLX algorithm.
+def solveInstance(instance):
+    labels, rows, columns, indicesL = instance
+    dlxInstance = DLX(columns)
     indices = {}
-    for l, i in zip(rows, range(len(rows))) :
-        h = instance.appendRow(l, 'r'+str(i))
-        indices[str(hash(tuple(sorted(l))))] = i
-    sol = instance.solve()
-    lst = list(sol)
-    selected = []
-    if len(lst) == 0:
+
+    # Append each row to the DLX instance and store its hash in indices.
+    for i, row in enumerate(rows):
+        h = dlxInstance.appendRow(row, f'r{i}')
+        indices[str(hash(tuple(sorted(row))))] = i
+
+    solution = dlxInstance.solve()
+    solutionList = list(solution)
+    selectedRows = []
+
+    # If no solution is found, return None.
+    if not solutionList:
         return None
-    for i in lst[0]:
-        l = instance.getRowList(i)
-        l2 = [indices_l[label] for label in l]
-        idx = indices[str(hash(tuple(sorted(l2))))]
-        selected.append(idx)
-    return selected
 
-def printColumnsPerRow(instance, selected) :
-    labels, rows, columns, indices_l = instance
-    print('covered columns per selected row')
-    for s in selected :
-        A = []
-        for z in rows[s] :
+    # Process the solution to find the selected rows.
+    for i in solutionList[0]:
+        rowList = dlxInstance.getRowList(i)
+        rowIndices = [indicesL[label] for label in rowList]
+        rowIndex = indices[str(hash(tuple(sorted(rowIndices))))]
+        selectedRows.append(rowIndex)
+
+    return selectedRows
+
+def printColumnsPerRow(instance, selectedRows):
+    labels, rows, columns, indicesL = instance
+    print('Covered columns per selected row:')
+
+    for s in selectedRows:
+        coveredColumns = []
+        for z in rows[s]:
             c, _ = columns[z]
-            A.append(c)
-        print(s, A)
+            coveredColumns.append(c)
+        print(s, coveredColumns)
 
-def printInstance(instance) :
-    labels, rows, columns, indices_l = instance
-    print('columns')
+def printInstance(instance):
+    labels, rows, columns, indicesL = instance
+    print('Columns:')
     print(labels)
-    print('rows')
+    print('Rows:')
     print(rows)
-

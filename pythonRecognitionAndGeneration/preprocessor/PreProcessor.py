@@ -73,7 +73,8 @@ class PreProcessor:
         labImage = cv2.cvtColor(self._image, cv2.COLOR_BGR2LAB)
         # filteredImage = cv2.pyrMeanShiftFiltering(labImage, 50, 20) This was good for some reason
         filteredImage = cv2.pyrMeanShiftFiltering(labImage, 15, 25)
-        cv2.imwrite("pyr.png", filteredImage)
+        # Uncomment to inspect result.
+        # cv2.imwrite("pyr.png", filteredImage)
         self._image = filteredImage
 
     def lab(self):
