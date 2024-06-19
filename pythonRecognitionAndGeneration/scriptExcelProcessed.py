@@ -3,118 +3,116 @@ import pandas as pd
 from scipy import stats
 import numpy as np
 
-def process_files_to_excel(folder_path, output_excel, type_value):
+def processFilesToExcel(folderPath, outputExcel, typeValue):
     data = []
 
-    # Iterate over all files in the specified folder
-    for filename in os.listdir(folder_path):
+    # Iterate over all files in the specified folder.
+    for filename in os.listdir(folderPath):
         if filename.endswith(".txt"):
-            file_path = os.path.join(folder_path, filename)
-            with open(file_path, 'r') as file:
+            filePath = os.path.join(folderPath, filename)
+            with open(filePath, 'r') as file:
                 lines = file.readlines()
 
-                # Extract size n from the filename
+                # Extract data from the filename.
                 parts = filename.split('_')
-                size_part = parts[1]  # This is the nxn part
-                size = size_part.split('x')[0]  # Extract n from nxn
+                sizePart = parts[1]
+                size = sizePart.split('x')[0]
 
-                # Create a dictionary to store the data for this file
-                file_data = {"Size": size, "Type": type_value}  # Use extracted size and set type
+                # Create a dictionary to store data.
+                fileData = {"Size": size, "Type": typeValue}
 
-                processing_total_time = 0.0  # Initialize the total processing time
+                # This is for aggregate time spent processing.
+                processingTotalTime = 0.0
 
-                for line in lines[1:]:  # Skip the header line
+                for line in lines[1:]:
                     parts = line.strip().split("\t")
                     if len(parts) == 2:
                         label, value = parts
+                        # Ignore these.
                         if label not in ["Jigsaw Success", "Choosing the best solution for Jigsaw"]:
                             try:
                                 value = round(float(value), 5)
                             except ValueError:
-                                pass  # Keep the original value if it cannot be converted to float
-                            file_data[label] = value
+                                pass
+                            fileData[label] = value
 
-                            # Sum the specific columns into processing_total_time
+                            # Sum the specific columns into processingTotalTime.
                             if label in ["PreProcessing", "Contour Finding", "Rotating Pieces", "Processing Pieces into Grids"]:
-                                processing_total_time += value
+                                processingTotalTime += value
 
-                # Add the new column to the dictionary
-                file_data["Processing Total Time"] = round(processing_total_time, 5)
+                fileData["Processing Total Time"] = round(processingTotalTime, 5)
 
-                # Remove individual preprocessing columns
+                # Remove columns that were aggregated.
                 for key in ["PreProcessing", "Contour Finding", "Rotating Pieces", "Processing Pieces into Grids"]:
-                    if key in file_data:
-                        del file_data[key]
+                    if key in fileData:
+                        del fileData[key]
 
-                data.append(file_data)
+                data.append(fileData)
 
-    # Create a DataFrame from the collected data
+    # Create a DataFrame from the collected data.
     df = pd.DataFrame(data)
 
-    # Process each column to calculate statistics
+    # Calculate statistics.
     grouped = df.groupby('Size')
-    stats_data = []
+    statsData = []
 
     for name, group in grouped:
-        row = {"Size": name, "Type": type_value}
+        row = {"Size": name, "Type": typeValue}
 
-        # Ensure there are at least 20 files in the group
+        # Ensure there are at least 20 files in the group. If not fill with Threshold plus 30 = 180.
         if len(group) < 20:
-            fill_count = 20 - len(group)
-            numeric_columns = group.select_dtypes(include=[np.number]).columns
-            group_mean = group[numeric_columns].mean()
-            fill_rows = [group_mean] * fill_count
-            fill_df = pd.DataFrame(fill_rows)
-            fill_df["Total time"] = 180
-            group = pd.concat([group, fill_df], ignore_index=True)
+            fillCount = 20 - len(group)
+            numericColumns = group.select_dtypes(include=[np.number]).columns
+            groupMean = group[numericColumns].mean()
+            fillRows = [groupMean] * fillCount
+            fillDF = pd.DataFrame(fillRows)
+            fillDF["Total time"] = 180
+            group = pd.concat([group, fillDF], ignore_index=True)
 
         if "Total time" in group.columns:
             values = group["Total time"].dropna().values
 
-            # Calculate original mean and percentiles
-            original_mean = round(values.mean(), 6)
-            percentile_50 = round(np.percentile(values, 50), 6)
-            percentile_90 = round(np.percentile(values, 90), 6)
-            percentile_99 = round(np.percentile(values, 99), 6)
+            # Calculate original mean and percentiles.
+            originalMean = round(values.mean(), 6)
+            percentile50 = round(np.percentile(values, 50), 6)
+            percentile90 = round(np.percentile(values, 90), 6)
+            percentile99 = round(np.percentile(values, 99), 6)
 
-            # Remove outliers using Z-score method
-            z_scores = stats.zscore(values)
-            filtered_values = values[(z_scores > -2) & (z_scores < 2)]
+            # Remove outliers using Z-score method.
+            zScores = stats.zscore(values)
+            filteredValues = values[(zScores > -2) & (zScores < 2)]
 
-            if len(filtered_values) > 0:
-                # Calculate filtered mean
-                filtered_mean = round(filtered_values.mean(), 6)
+            if len(filteredValues) > 0:
+                filteredMean = round(filteredValues.mean(), 6)
             else:
-                filtered_mean = np.nan
+                filteredMean = np.nan
 
-            # Calculate the number of outliers removed
-            outliers_removed = len(values) - len(filtered_values)
+            # Calculate the number of outliers removed.
+            outliersRemoved = len(values) - len(filteredValues)
 
-            # Add the calculated statistics to the row
-            row["Total time Original Mean"] = original_mean
-            row["Total time Filtered Mean"] = filtered_mean
-            row["Total time 50th Percentile"] = percentile_50
-            row["Total time 90th Percentile"] = percentile_90
-            row["Total time 99th Percentile"] = percentile_99
-            row["Total time Outliers Removed"] = outliers_removed
+            # Add the calculated statistics to the row.
+            row["Total time Original Mean"] = originalMean
+            row["Total time Filtered Mean"] = filteredMean
+            row["Total time 50th Percentile"] = percentile50
+            row["Total time 90th Percentile"] = percentile90
+            row["Total time 99th Percentile"] = percentile99
+            row["Total time Outliers Removed"] = outliersRemoved
 
-        # Process the Processing Total Time separately
         if "Processing Total Time" in group.columns:
             values = group["Processing Total Time"].dropna().values
             row["Processing Total Time Mean"] = round(values.mean(), 6)
 
-        stats_data.append(row)
+        statsData.append(row)
 
-    stats_df = pd.DataFrame(stats_data)
+    statsDF = pd.DataFrame(statsData)
 
-    # Save the DataFrame with statistics to an Excel file
-    stats_df.to_excel(output_excel, index=False)
-    print(f"Data with statistics has been written to {output_excel}")
+    # Save the data to the Excel file.
+    statsDF.to_excel(outputExcel, index=False)
 
-# Specify the folder containing the text files and the output Excel file
-folder_path = "Evaluation/DLX-CPP/Colour/AllOut2"  # Replace with your folder path
-output_excel = "TessellationDLXCPP_ALL2_Colour_Stats.xlsx"  # Replace with your desired output file name
-type_value = "DLXCPP_Colour_All"  # Replace with your desired type value
+# Specify the folder name and output name.
+folderPath = "Evaluation/DLX-CPP/Colour/AllOut2"
+outputExcel = "TessellationDLXCPP_ALL2_Colour_Stats.xlsx"
+typeValue = "DLXCPP_Colour_All"
 
-# Process the files and create the Excel file with statistics
-process_files_to_excel(folder_path, output_excel, type_value)
+# Process the files and create the Excel.
+processFilesToExcel(folderPath, outputExcel, typeValue)

@@ -1,7 +1,0 @@
-Label	Time
-PreProcessing	0.01671990000000001
-Contour Finding	0.01716019999999996
-Rotating Pieces	0.006324200000000113
-Processing Pieces into Grids	0.007541099999999856
-Solving the Puzzle	31.577769100000005
-Total time	31.625934599999997
