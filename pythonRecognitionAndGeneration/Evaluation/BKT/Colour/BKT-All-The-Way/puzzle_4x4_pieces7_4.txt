@@ -1,0 +1,11 @@
+Label	Time
+PreProcessing	0.004591500000000082
+Contour Finding	0.0038568000000001046
+Rotating Pieces	0.0012886999999999205
+Processing Pieces into Grids	0.0025448000000001247
+Solving the Puzzle	0.0028897999999999424
+First BKT solution found at 	0.0027895000000000003
+Choosing the best solution for Jigsaw	0
+Total time	0.015266400000000013
+Jigsaw Success	True
+Pieces	7

@@ -7,11 +7,11 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_subdirectory(pybind11)
 
-#set(SOURCE_FILES
-#        DLXCPPLinker.cpp
-#        dlx.cpp
-#        NodeMatrix.cpp
-#)
+set(SOURCE_FILES
+        DLXCPPLinker.cpp
+        dlx.cpp
+        NodeMatrix.hpp
+)
 
 pybind11_add_module(DLXCPP DLXCPPLinker.cpp)
 

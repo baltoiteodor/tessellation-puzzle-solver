@@ -1,4 +1,0 @@
-on stress test 1:
-- colouring, all rotation pre-calculated: 1752 seconds
-- DLX PyPy no colours: dead
-- DLX PyPy colours: 1.88 seconds

@@ -1,27 +1,24 @@
 import os
 import subprocess
 
-# Path to the folder containing examples
-folder_path = "images\\test"
+folderPath = "images/test_low_num"
+exampleFiles = os.listdir(folderPath)
 
-# List all files in the folder
-example_files = os.listdir(folder_path)
+for exampleFile in exampleFiles:
+    print(exampleFile)
 
-# Iterate over the example files
-for example_file in example_files:
-    print(example_file)
-    # Construct the command with the current example file as the value for --path flag
+    # Construct the command with the current example file as the value for --path flag.
     command = [
         'python',
-        '.\\tps.py',
-        '--image', os.path.join(folder_path, example_file),  # Construct the path for the current example file
+        os.path.join('.', 'tps.py'),
+        '--image', os.path.join(folderPath, exampleFile),
         '--colour',
         '--DLX', '1',
     ]
 
-    print("Running command:", " ".join(command))  # Print the command being executed
+    print("Running command:", " ".join(command))
 
-    # Run the command
+    # Run.
     try:
         subprocess.run(command, check=True)
     except subprocess.CalledProcessError as e:

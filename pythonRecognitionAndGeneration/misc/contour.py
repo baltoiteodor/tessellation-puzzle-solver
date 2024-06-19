@@ -16,20 +16,61 @@ class Contour:
         self._angle = 0
         self._colour = self._calculateColour()
 
-    # def setUpColourMap(self, rotatedContour):
-    #     r, g, b = self._colour
-    #     rotatedImage = np.zeros_like(self._image)
-    #     cv2.drawContours(rotatedImage, rotatedContour, -1, (b, g, r), thickness=cv2.FILLED)
-    #
-    #     # mask the region inside the rotated contour.
-    #     mask = np.zeros_like(self._image)
-    #     cv2.drawContours(mask, [self._contour], -1, (255, 255, 255), thickness=cv2.FILLED)
-    #
-    #     # Transfer colors from original image to rotated image within the masked region
-    #     resultImage = np.where(mask != 0, self._image, rotatedImage)
-    #
-    #     return resultImage
 
+    def rotateImage(self, image, angle):
+        # Determine the center.
+        (height, width) = image.shape[:2]
+        (centerX, centerY) = (width // 2, height // 2)
+
+        # Grab the rotation matrix, then grab the sine and cosine and compute new dimensions.
+        matrix = cv2.getRotationMatrix2D((centerX, centerY), angle, 1.0)
+        cos = np.abs(matrix[0, 0])
+        sin = np.abs(matrix[0, 1])
+
+        newWidth = int((height * sin) + (width * cos))
+        newHeight = int((height * cos) + (width * sin))
+
+        # Adjust the rotation matrix to take into account translation.
+        matrix[0, 2] += (newWidth / 2) - centerX
+        matrix[1, 2] += (newHeight / 2) - centerY
+
+        # Perform rotation and return the image.
+        return cv2.warpAffine(image, matrix, (newWidth, newHeight))
+
+    # This function is used in the suboptimal method of recreating solutions. Can be used for comparisons.
+    def createROIAtAngle(self, targetLocation, targetImg, rotationDegrees):
+        originalImg = self._image
+
+        # Create a mask from the contour and roi.
+        mask = np.zeros(originalImg.shape[:2], dtype=np.uint8)
+        cv2.drawContours(mask, [self._originalContour], -1, 255, -1)
+
+        roi = cv2.bitwise_and(originalImg, originalImg, mask=mask)
+
+        # Calculate the bounding box of the contour to extract masks.
+
+        x, y, w, h = cv2.boundingRect(self._originalContour)
+        extractedShape = roi[y:y+h, x:x+w]
+        shapeMask = mask[y:y+h, x:x+w]
+
+        # Rotate the extracted shape and the mask.
+        rotatedShape = self.rotateImage(extractedShape, rotationDegrees)
+        rotatedMask = self.rotateImage(shapeMask, rotationDegrees).astype(np.uint8)
+
+        height, width = rotatedShape.shape[:2]
+        targetX, targetY = targetLocation
+
+        # Ensure the piece is in bounds.
+        if targetX + width > targetImg.shape[1] or targetY + height > targetImg.shape[0]:
+            raise ValueError("Piece goes out of bounds of the target image.")
+
+        # Mask target region and add the piece.
+        targetRegion = targetImg[targetY:targetY+height, targetX:targetX+width]
+        targetRegionMasked = cv2.bitwise_and(targetRegion, targetRegion, mask=cv2.bitwise_not(rotatedMask))
+        finalRegion = cv2.add(targetRegionMasked, rotatedShape)
+        targetImg[targetY:targetY+height, targetX:targetX+width] = finalRegion
+
+        return targetImg
     def getOrdNum(self):
         return self._ordNum
 
@@ -57,8 +98,7 @@ class Contour:
         self._minAreaRect = cv2.minAreaRect(self._contour)
         self._area = cv2.contourArea(self._contour)
 
-    # Sample 11 points, return the median value of an average of surrounding
-    # neighbours.
+    # Sample 11 points, return the median value surrounding neighbours.
     def _calculateColour(self):
         contour = self._contour
         x, y, width, height = self._boundingRectangle
@@ -75,7 +115,7 @@ class Contour:
                 randomPoint = (np.random.randint(x, x + width),
                                np.random.randint(y, y + height))
                 isInside = cv2.pointPolygonTest(contour, randomPoint, measureDist=False)
-            # Found a point that is inside, TODO: make up an average of neighbours.
+            # Found a point that is inside.
             b, g, r = self._image[randomPoint[1], randomPoint[0]]
 
             blue.append(b)

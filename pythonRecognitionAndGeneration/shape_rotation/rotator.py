@@ -13,27 +13,27 @@ class Rotator:
         self._logger = logger
         self._startTime = self._endTime = 0
 
+    def getTimeTaken(self):
+        return self._endTime - self._startTime
     def rotate(self, contours, image):
+        self._startTime = timer()
         if self._logger:
-            self._startTime = timer()
             print("Entering Rotator class...")
             print("Checking shapes if they need rotating...")
 
         rotatedImage = np.zeros_like(image)
-        # rotatedContours = []
-
-        # cv.drawContours(rotatedImage, contours, 0, (255, 0, 0), 2)
 
         for i, contour in enumerate(contours):
             # Calculate the lowest point and lowest of its neighbours.
             lowestPoint, secondPoint = lowestSide(contour)
+
             # Calculate if the lowest edge is parallel to Ox by checking if the y coordinates are similar.
             yDifference = abs(lowestPoint[0][1] - secondPoint[0][1])
+
             # If it is parallel then do not do anything to the contour.
             if yDifference < thresholdHeightDifference:
                 if self._logger:
                     print(f"Difference in angle not above certain threshold for contour number {i}.")
-                # rotatedContours.append(Contour(contour, image, i))
                 # Also draw for debugging purposes.
                 if self._logger:
                     cv.drawContours(rotatedImage, [contour.getContour()], 0, (255, 255, 255), 2)
@@ -42,11 +42,6 @@ class Rotator:
                 angle = np.arctan2(lowestPoint[0][1] - secondPoint[0][1],
                                    lowestPoint[0][0] - secondPoint[0][0]) * 180 / np.pi
                 rotationAngle = - angle
-                # center = (float(lowestPoint[0][0]), float(lowestPoint[0][1]))
-                #
-                # rotationMatrix = cv.getRotationMatrix2D(center, rotationAngle, 1.0)
-                #
-                # rotatedContour = cv.transform(np.array([contour]), rotationMatrix)[0]
                 rotatedContour = contour.rotate(lowestPoint, rotationAngle)
                 if self._logger:
                     print(f"Difference above certain threshold for contour number {i}: {contour}")
@@ -56,12 +51,11 @@ class Rotator:
                     cv.drawContours(rotatedImage, [rotatedContour.astype(int)], -1, (0, 255, 0), thickness=cv.FILLED)
 
                 contour.setContour(rotatedContour)
-                # rotatedContours.append(Contour(rotatedContour, image, i))
 
-        cv.imwrite("straight.jpg", rotatedImage)
-
+        # Uncomment to inspect rotated contours.
+        # cv.imwrite("straight.jpg", rotatedImage)
+        self._endTime = timer()
         if self._logger:
-            self._endTime = timer()
             print(f"Exiting Rotator class: {self._endTime - self._startTime}...")
             print("---")
             print("----------------------------")
