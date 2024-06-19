@@ -252,7 +252,9 @@ def main():
                     drawnSolutionsParallel.append(future.result())
             timeAfterPrintParallel = timer()
             timeTookPrintParallel = timeAfterPrintParallel - timeBeforePrintParallel
-            print(f"Time taken with parallelism: {timeTookPrintParallel} seconds")
+
+            # Uncomment to inspect the time taken to recreate all solutions.
+            # print(f"Time taken with parallelism: {timeTookPrintParallel} seconds")
 
             # Uncomment to choose the best solution with pHash or SSIM.
 
@@ -269,7 +271,7 @@ def main():
             timeOutNCC = timer()
             timeNCC = timeOutNCC - timeInNCC
 
-            print("NCC: ", timeNCC)
+            # print("NCC: ", timeNCC)
             ncc = timeNCC
             chooserTimeOut = timer()
 

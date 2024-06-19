@@ -16,127 +16,58 @@ class Contour:
         self._angle = 0
         self._colour = self._calculateColour()
 
-    # def setUpColourMap(self, rotatedContour):
-    #     r, g, b = self._colour
-    #     rotatedImage = np.zeros_like(self._image)
-    #     cv2.drawContours(rotatedImage, rotatedContour, -1, (b, g, r), thickness=cv2.FILLED)
-    #
-    #     # mask the region inside the rotated contour.
-    #     mask = np.zeros_like(self._image)
-    #     cv2.drawContours(mask, [self._contour], -1, (255, 255, 255), thickness=cv2.FILLED)
-    #
-    #     # Transfer colors from original image to rotated image within the masked region
-    #     resultImage = np.where(mask != 0, self._image, rotatedImage)
-    #
-    #     return resultImage
-    def createROI(self, targetLocation, targetImage, angle):
-        targetSize = targetImage.shape[:2]
-
-        # Create a mask from the contour
-        mask = np.zeros(self._image.shape[:2], dtype=np.uint8)
-        cv2.drawContours(mask, [self._originalContour], -1, 255, -1)  # Draw filled contour
-
-        # Create the ROI from the mask on the original image
-        roi = cv2.bitwise_and(self._image, self._image, mask=mask)
-
-        # Calculate the bounding box of the contour to extract the minimal area
-        x, y, w, h = cv2.boundingRect(self._originalContour)
-
-        # Extract the region of interest using the bounding rectangle
-        extractedShape = roi[y:y+h, x:x+w]
-
-        # Prepare the mask for this shape to be used in the target image
-        shapeMask = mask[y:y+h, x:x+w]
-
-        # Location to place the shape on the target image
-        tx, ty = targetLocation
-
-        # Ensure the target location does not go out of bounds
-        if tx + w > targetSize[1] or ty + h > targetSize[0]:
-            raise ValueError("Target location goes out of bounds of the target image.")
-
-        # Prepare the region on the target image where the shape will be placed
-        targetRegion = targetImage[ty:ty+h, tx:tx+w]
-        # Mask out the area in the target image
-        # print("mortimati: ", targetLocation)
-        # print("uwu 2 ", extractedShape.shape)
-        # print("uwu 3 ", shapeMask.shape)
-        # print("uwu ffs ", targetRegion.shape, w)
-
-        targetRegionMasked = cv2.bitwise_and(targetRegion, targetRegion, mask=cv2.bitwise_not(shapeMask))
-        # print("uwu ", targetRegionMasked.shape)
-
-        # Combine the extracted shape with the target region
-        finalRegion = cv2.add(targetRegionMasked, extractedShape)
-
-        # Place the combined region back into the target image
-        targetImage[ty:ty+h, tx:tx+w] = finalRegion
-
-        cv2.imwrite(f'mata{self._ordNum}.png', targetImage)
-        return targetImage
 
     def rotateImage(self, image, angle):
-        # Grab the dimensions of the image and then determine the center
+        # Determine the center.
         (height, width) = image.shape[:2]
         (centerX, centerY) = (width // 2, height // 2)
 
-        # Grab the rotation matrix, then grab the sine and cosine
-        # (i.e., the rotation components of the matrix)
+        # Grab the rotation matrix, then grab the sine and cosine and compute new dimensions.
         matrix = cv2.getRotationMatrix2D((centerX, centerY), angle, 1.0)
         cos = np.abs(matrix[0, 0])
         sin = np.abs(matrix[0, 1])
 
-        # Compute the new bounding dimensions of the image
         newWidth = int((height * sin) + (width * cos))
         newHeight = int((height * cos) + (width * sin))
 
-        # Adjust the rotation matrix to take into account translation
+        # Adjust the rotation matrix to take into account translation.
         matrix[0, 2] += (newWidth / 2) - centerX
         matrix[1, 2] += (newHeight / 2) - centerY
 
-        # Perform the actual rotation and return the image
+        # Perform rotation and return the image.
         return cv2.warpAffine(image, matrix, (newWidth, newHeight))
 
+    # This function is used in the suboptimal method of recreating solutions. Can be used for comparisons.
     def createROIAtAngle(self, targetLocation, targetImg, rotationDegrees):
         originalImg = self._image
-        # Create a mask from the contour
-        mask = np.zeros(originalImg.shape[:2], dtype=np.uint8)
-        cv2.drawContours(mask, [self._originalContour], -1, 255, -1)  # Draw filled contour
 
-        # Create the ROI from the mask on the original image
+        # Create a mask from the contour and roi.
+        mask = np.zeros(originalImg.shape[:2], dtype=np.uint8)
+        cv2.drawContours(mask, [self._originalContour], -1, 255, -1)
+
         roi = cv2.bitwise_and(originalImg, originalImg, mask=mask)
 
-        # Calculate the bounding box of the contour to extract the minimal area
+        # Calculate the bounding box of the contour to extract masks.
+
         x, y, w, h = cv2.boundingRect(self._originalContour)
         extractedShape = roi[y:y+h, x:x+w]
         shapeMask = mask[y:y+h, x:x+w]
 
-        # Rotate the extracted shape and the mask
+        # Rotate the extracted shape and the mask.
         rotatedShape = self.rotateImage(extractedShape, rotationDegrees)
         rotatedMask = self.rotateImage(shapeMask, rotationDegrees).astype(np.uint8)
 
-        # Calculate new dimensions
         height, width = rotatedShape.shape[:2]
         targetX, targetY = targetLocation
 
-        # Ensure the target location does not go out of bounds
+        # Ensure the piece is in bounds.
         if targetX + width > targetImg.shape[1] or targetY + height > targetImg.shape[0]:
-            raise ValueError("Target location goes out of bounds of the target image.")
+            raise ValueError("Piece goes out of bounds of the target image.")
 
-        # Prepare the region on the target image where the shape will be placed
+        # Mask target region and add the piece.
         targetRegion = targetImg[targetY:targetY+height, targetX:targetX+width]
-
-        # print("Rotated Shape: ", rotatedShape.shape)
-        # print("Rotated Mask: ", rotatedMask.shape)
-        # print("Target Region: ", targetRegion.shape)
-
-        # Mask out the area in the target image
         targetRegionMasked = cv2.bitwise_and(targetRegion, targetRegion, mask=cv2.bitwise_not(rotatedMask))
-
-        # Combine the rotated extracted shape with the target region
         finalRegion = cv2.add(targetRegionMasked, rotatedShape)
-
-        # Place the combined region back into the target image
         targetImg[targetY:targetY+height, targetX:targetX+width] = finalRegion
 
         return targetImg
@@ -167,8 +98,7 @@ class Contour:
         self._minAreaRect = cv2.minAreaRect(self._contour)
         self._area = cv2.contourArea(self._contour)
 
-    # Sample 11 points, return the median value of an average of surrounding
-    # neighbours.
+    # Sample 11 points, return the median value surrounding neighbours.
     def _calculateColour(self):
         contour = self._contour
         x, y, width, height = self._boundingRectangle
@@ -185,7 +115,7 @@ class Contour:
                 randomPoint = (np.random.randint(x, x + width),
                                np.random.randint(y, y + height))
                 isInside = cv2.pointPolygonTest(contour, randomPoint, measureDist=False)
-            # Found a point that is inside, TODO: make up an average of neighbours.
+            # Found a point that is inside.
             b, g, r = self._image[randomPoint[1], randomPoint[0]]
 
             blue.append(b)
