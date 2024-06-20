@@ -4,7 +4,6 @@
 #include <ctime>
 #include <cstdlib>
 
-
 namespace py = pybind11;
 
 
@@ -52,6 +51,7 @@ public:
             }
         }
     }
+
     void uncover_column(NodeId c) {
         c = C(c);
         for (NodeId i = U(c); i != c; i = U(i)) {
@@ -121,8 +121,10 @@ private:
     std::vector<Node> nodes_;
 };
 
-
+//
 // Here is where we interact with the C++ code from python and consists of the DLX algorithm.
+//
+
 class DLXSolver{
 public:
 
@@ -134,7 +136,7 @@ public:
     DLXSolver(std::vector<std::vector<int>> rows, int width): rows_(rows), width_(width), matrix_(rows, width){};
 
     void printer() {
-        std::cout << rowsNum_ << "That s how many rows there are btw.\n";
+        std::cout << rowsNum_ << " That is how many rows there are.\n";
     }
 
     std::vector<std::vector<int>> getRows() {
@@ -145,23 +147,27 @@ public:
         return width_;
     }
 
-    std::vector<int> solve() {
+    std::vector<std::vector<int>> solve(int maxSol) {
         std::vector<int> solution;
         SearchState state = SearchState();
-        search(solution, state);
-        return solution;
+        search(solution, state, maxSol);
+        return solutions_;
     }
 
-    void search(std::vector<int> &solution, SearchState &state) {
+    void search(std::vector<int> &solution, SearchState &state, int maxSol) {
         if (state.stopped) {
             return;
         }
 
         // Assign h 0, a.k.a. root, and verify if root property holds.
+        // If reached the max number of solutions, return.
         auto h = 0;
         if (R(h) == h) {
-            state.stopped = true;
             solution = state.stack;
+            solutions_.push_back(solution);
+            if(solutions_.size() >= maxSol) {
+                state.stopped = true;
+            }
             return;
         }
 
@@ -189,15 +195,70 @@ public:
             state.stack.push_back(Y(r));
             for (auto j = R(r); j != r; j = R(j))
                 cover_column(j);
-            search(solution, state);
+            search(solution, state, maxSol);
             for (auto j = L(r); j != r; j = L(j))
                 uncover_column(j);
             state.stack.pop_back();
         }
         uncover_column(c);
     }
+
+//    double calculateSim(cv::Mat img1, cv::Mat img2) {
+//        cv::Mat img1_gray, img2_gray;
+//        cv::cvtColor(img1, img1_gray, cv::COLOR_BGR2GRAY);
+//        cv::cvtColor(img2, img2_gray, cv::COLOR_BGR2GRAY);
+//
+//        cv::Mat ssim_map;
+//        cv::Mat temp1, temp2, temp3;
+//
+//        const double C1 = 6.5025, C2 = 58.5225;
+//
+//        cv::Mat I1, I2;
+//        img1_gray.convertTo(I1, CV_32F);
+//        img2_gray.convertTo(I2, CV_32F);
+//
+//        cv::Mat I1_2 = I1.mul(I1);
+//        cv::Mat I2_2 = I2.mul(I2);
+//        cv::Mat I1_I2 = I1.mul(I2);
+//
+//        cv::GaussianBlur(I1, temp1, cv::Size(11, 11), 1.5);
+//        cv::GaussianBlur(I2, temp2, cv::Size(11, 11), 1.5);
+//
+//        cv::Mat mu1 = temp1;
+//        cv::Mat mu2 = temp2;
+//
+//        cv::Mat mu1_2 = mu1.mul(mu1);
+//        cv::Mat mu2_2 = mu2.mul(mu2);
+//        cv::Mat mu1_mu2 = mu1.mul(mu2);
+//
+//        cv::GaussianBlur(I1_2, temp1, cv::Size(11, 11), 1.5);
+//        cv::GaussianBlur(I2_2, temp2, cv::Size(11, 11), 1.5);
+//        cv::GaussianBlur(I1_I2, temp3, cv::Size(11, 11), 1.5);
+//
+//        cv::Mat sigma1_2 = temp1 - mu1_2;
+//        cv::Mat sigma2_2 = temp2 - mu2_2;
+//        cv::Mat sigma12 = temp3 - mu1_mu2;
+//
+//        cv::Mat t1, t2, t3;
+//
+//        t1 = 2 * mu1_mu2 + C1;
+//        t2 = 2 * sigma12 + C2;
+//        t3 = t1.mul(t2);
+//
+//        t1 = mu1_2 + mu2_2 + C1;
+//        t2 = sigma1_2 + sigma2_2 + C2;
+//        t1 = t1.mul(t2);
+//
+//        cv::divide(t3, t1, ssim_map);
+//
+//        cv::Scalar mssim = cv::mean(ssim_map);
+//        return mssim[0];
+//    }
+
+
 private:
     NodeMatrix matrix_;
+    std::vector<std::vector<int>> solutions_;
     int rowsNum_ = 0;
     std::vector<std::vector<int>> rows_;
     int width_ = 0;
@@ -216,16 +277,21 @@ private:
 };
 
 PYBIND11_MODULE(DLXCPP, handle) {
-    handle.doc() = "Module DLX docs.";
+handle.doc() = "Module DLX docs.";
 //    handle.def("add_cpp", &add);
 
-    py::class_<DLXSolver>(
-            handle, "DLXCPPSolver"
-            )
-        .def(py::init<std::vector<std::vector<int>>, int>())
-        .def("printer", &DLXSolver::printer)
-        .def("getRows", &DLXSolver::getRows)
-        .def("getWidth", &DLXSolver::getWidth)
-        .def("solve", &DLXSolver::solve)
-    ;
+py::class_<DLXSolver>(
+        handle, "DLXCPPSolver"
+)
+.def(py::init<std::vector<std::vector<int>>, int>())
+.def("printer", &DLXSolver::printer)
+.def("getRows", &DLXSolver::getRows)
+.def("getWidth", &DLXSolver::getWidth)
+.def("solve", &DLXSolver::solve)
+//        .def("calculate_ssim", [](DLXSolver &self, py::array_t<unsigned char> img1, py::array_t<unsigned char> img2) {
+//            cv::Mat mat_img1 = numpy_to_mat(img1);
+//            cv::Mat mat_img2 = numpy_to_mat(img2);
+//            return self.calculate_ssim(mat_img1, mat_img2);
+//        })
+;
 }
